@@ -70,3 +70,26 @@ Stage Summary:
 - Import Leger feature: upload multiple .xlsx leger files at once
 - All old nilaiAsli/nilaiUp references replaced with rerata throughout codebase
 - Peringkat API optimized with Prisma groupBy for memory efficiency
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix blank page showing only Z logo - ensure app stability
+
+Work Log:
+- Investigated the "only Z logo showing" issue - the Z.ai logo was used as both the favicon and public/logo.svg
+- The layout.tsx referenced external Z.ai CDN for favicon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg"
+- Created new emerald-themed "K" logo SVG for Kelas App at public/logo.svg
+- Updated layout.tsx to use local /logo.svg instead of external Z.ai CDN
+- Verified all API endpoints working: /api/dashboard (23 rombels, 818 siswa, 1931 nilai), /api/rombel, /api/siswa, /api/nilai, /api/peringkat, /api/eligible, /api/analisa
+- Checked all 8 page components for errors: Dashboard, Rombel, Siswa, Nilai, Eligible, Analisa, Rekomendasi Jurusan, Rekomendasi PT
+- TypeScript compilation: no errors in src/ directory
+- ESLint: no errors
+- Dev server restarted and confirmed stable with proper rendering
+
+Stage Summary:
+- Root cause: The Z.ai logo was set as the default favicon and logo.svg, making the app look like a Z.ai branded page when loading
+- Fixed by creating a custom emerald "K" (Kelas) logo and updating favicon reference
+- All components verified working - no TypeScript or ESLint errors
+- App properly renders with 23 rombels, 818 siswa, 1931 nilai records
+- Dev server stable and serving pages correctly
