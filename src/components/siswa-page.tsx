@@ -1,29 +1,32 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { Plus, Pencil, Trash2, Search, Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Plus, Pencil, Trash2, Search, Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle, Users, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 interface Rombel { id: string; nama: string; kelas: number; jurusan: string }
 interface Siswa {
-  id: string; nis: string; nama: string; jenisKelamin: string; rombelId: string
+  id: string; nis: string; nisn: string; nama: string; jenisKelamin: string
+  tempatLahir: string; tanggalLahir: string; rombelId: string
   rombel: Rombel
 }
 
-const emptyForm = { nis: '', nama: '', jenisKelamin: 'L', rombelId: '' }
+const emptyForm = { nis: '', nisn: '', nama: '', jenisKelamin: 'L', tempatLahir: '', tanggalLahir: '', rombelId: '' }
+const PAGE_SIZE = 50
 
 export function SiswaPage() {
   const [data, setData] = useState<Siswa[]>([])
+  const [totalSiswa, setTotalSiswa] = useState(0)
   const [rombelList, setRombelList] = useState<Rombel[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
@@ -31,6 +34,7 @@ export function SiswaPage() {
   const [form, setForm] = useState(emptyForm)
   const [search, setSearch] = useState('')
   const [filterRombel, setFilterRombel] = useState('all')
+  const [page, setPage] = useState(1)
   const { toast } = useToast()
 
   // Import state
@@ -41,6 +45,7 @@ export function SiswaPage() {
     rombelCreated: number
     rombelTotal: number
     siswaCreated: number
+    siswaUpdated: number
     siswaSkipped: number
     siswaTotal: number
     errors: string[]
@@ -48,26 +53,45 @@ export function SiswaPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [serverFiles, setServerFiles] = useState<{ name: string; size: number; lastModified: string }[]>([])
   const [selectedServerFile, setSelectedServerFile] = useState<string>('')
+  const [clearExisting, setClearExisting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const [siswaRes, rombelRes] = await Promise.all([
-        fetch('/api/siswa'),
-        fetch('/api/rombel'),
-      ])
-      const siswaJson = await siswaRes.json()
+      const rombelRes = await fetch('/api/rombel')
       const rombelJson = await rombelRes.json()
-      setData(siswaJson)
       setRombelList(rombelJson)
+
+      // Use server-side pagination and filtering
+      const params = new URLSearchParams()
+      params.set('limit', String(PAGE_SIZE))
+      params.set('page', String(page))
+      if (search) params.set('search', search)
+      if (filterRombel !== 'all') params.set('rombelId', filterRombel)
+
+      const siswaRes = await fetch(`/api/siswa?${params}`)
+      const siswaJson = await siswaRes.json()
+
+      if (siswaJson.data) {
+        setData(siswaJson.data)
+        setTotalSiswa(siswaJson.total)
+      } else {
+        setData(siswaJson)
+        setTotalSiswa(Array.isArray(siswaJson) ? siswaJson.length : 0)
+      }
     } catch {
       toast({ title: 'Gagal memuat data', variant: 'destructive' })
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, search, filterRombel, toast])
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData() }, [fetchData])
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1) }, [search, filterRombel])
+
+  const totalPages = Math.ceil(totalSiswa / PAGE_SIZE)
 
   const handleSubmit = async () => {
     try {
@@ -111,8 +135,11 @@ export function SiswaPage() {
     setEditId(item.id)
     setForm({
       nis: item.nis,
+      nisn: item.nisn,
       nama: item.nama,
       jenisKelamin: item.jenisKelamin,
+      tempatLahir: item.tempatLahir,
+      tanggalLahir: item.tanggalLahir,
       rombelId: item.rombelId,
     })
     setOpen(true)
@@ -157,7 +184,7 @@ export function SiswaPage() {
       const importRes = await fetch('/api/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath }),
+        body: JSON.stringify({ filePath, clearExisting }),
       })
 
       const result = await importRes.json()
@@ -169,10 +196,10 @@ export function SiswaPage() {
       setImportResult(result)
       fetchData()
 
-      if (result.siswaCreated > 0) {
+      if (result.siswaCreated > 0 || result.siswaUpdated > 0) {
         toast({
           title: 'Import Berhasil',
-          description: `${result.siswaCreated} siswa dan ${result.rombelCreated} rombel berhasil diimport`,
+          description: `${result.siswaCreated} siswa baru, ${result.siswaUpdated} siswa diperbarui, ${result.rombelCreated} rombel baru`,
         })
       }
     } catch (e: unknown) {
@@ -198,6 +225,7 @@ export function SiswaPage() {
     setSelectedFile(null)
     setSelectedServerFile('')
     setImportResult(null)
+    setClearExisting(false)
     setImportOpen(true)
     // Load server files
     fetch('/api/upload/list')
@@ -206,11 +234,14 @@ export function SiswaPage() {
       .catch(() => setServerFiles([]))
   }
 
-  const filtered = data.filter(s => {
-    const matchSearch = s.nama.toLowerCase().includes(search.toLowerCase()) || s.nis.includes(search)
-    const matchRombel = filterRombel === 'all' || s.rombelId === filterRombel
-    return matchSearch && matchRombel
-  })
+  // Stats derived from rombelList (which has _count from the API)
+  const totalSiswaFromRombel = rombelList.reduce((sum, r) => sum + ((r as Rombel & { _count?: { siswa: number } })._count?.siswa ?? 0), 0)
+
+  const kelasColor = (kelas: number) => {
+    if (kelas === 10) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+    if (kelas === 11) return 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
+    return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400'
+  }
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
@@ -218,11 +249,93 @@ export function SiswaPage() {
 
   return (
     <div className="space-y-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                <Users className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{totalSiswaFromRombel}</p>
+                <p className="text-xs text-muted-foreground">Total Siswa</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30">
+                <Users className="h-5 w-5 text-teal-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{rombelList.length}</p>
+                <p className="text-xs text-muted-foreground">Total Rombel</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-cyan-100 dark:bg-cyan-900/30">
+                <Users className="h-5 w-5 text-cyan-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{rombelList.filter(r => r.kelas === 10).length}</p>
+                <p className="text-xs text-muted-foreground">Rombel Kelas 10</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-pink-100 dark:bg-pink-900/30">
+                <Users className="h-5 w-5 text-pink-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{rombelList.filter(r => r.kelas === 12).length}</p>
+                <p className="text-xs text-muted-foreground">Rombel Kelas 12</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Rombel Summary */}
+      {rombelList.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Rombongan Belajar</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex flex-wrap gap-2">
+              {rombelList.sort((a, b) => a.kelas - b.kelas || a.nama.localeCompare(b.nama)).map(r => {
+                const rc = r as Rombel & { _count?: { siswa: number } }
+                return (
+                  <Badge
+                    key={r.id}
+                    variant="outline"
+                    className={`cursor-pointer transition-colors ${filterRombel === r.id ? 'ring-2 ring-primary' : ''} ${kelasColor(r.kelas)}`}
+                    onClick={() => setFilterRombel(filterRombel === r.id ? 'all' : r.id)}
+                  >
+                    {r.nama} ({rc._count?.siswa ?? 0})
+                  </Badge>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Cari nama atau NIS..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder="Cari nama, NIS, atau NISN..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
           </div>
           <Select value={filterRombel} onValueChange={setFilterRombel}>
             <SelectTrigger className="w-44"><SelectValue placeholder="Filter Rombel" /></SelectTrigger>
@@ -239,11 +352,6 @@ export function SiswaPage() {
             <Upload className="h-4 w-4 mr-1" /> Import Excel
           </Button>
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={handleAdd} size="sm">
-                <Plus className="h-4 w-4 mr-1" /> Tambah Siswa
-              </Button>
-            </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{editId ? 'Edit Siswa' : 'Tambah Siswa'}</DialogTitle>
@@ -255,6 +363,12 @@ export function SiswaPage() {
                     <Input placeholder="Nomor Induk Siswa" value={form.nis} onChange={e => setForm(f => ({ ...f, nis: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
+                    <Label>NISN</Label>
+                    <Input placeholder="NISN" value={form.nisn} onChange={e => setForm(f => ({ ...f, nisn: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <Label>Jenis Kelamin</Label>
                     <Select value={form.jenisKelamin} onValueChange={v => setForm(f => ({ ...f, jenisKelamin: v }))}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -264,21 +378,31 @@ export function SiswaPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-2">
+                    <Label>Rombel</Label>
+                    <Select value={form.rombelId} onValueChange={v => setForm(f => ({ ...f, rombelId: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Pilih Rombel" /></SelectTrigger>
+                      <SelectContent>
+                        {rombelList.map(r => (
+                          <SelectItem key={r.id} value={r.id}>{r.nama}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Nama Lengkap</Label>
                   <Input placeholder="Nama siswa" value={form.nama} onChange={e => setForm(f => ({ ...f, nama: e.target.value }))} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Rombel</Label>
-                  <Select value={form.rombelId} onValueChange={v => setForm(f => ({ ...f, rombelId: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Pilih Rombel" /></SelectTrigger>
-                    <SelectContent>
-                      {rombelList.map(r => (
-                        <SelectItem key={r.id} value={r.id}>{r.nama} - {r.jurusan}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Tempat Lahir</Label>
+                    <Input placeholder="Tempat lahir" value={form.tempatLahir} onChange={e => setForm(f => ({ ...f, tempatLahir: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tanggal Lahir</Label>
+                    <Input placeholder="YYYY-MM-DD" value={form.tanggalLahir} onChange={e => setForm(f => ({ ...f, tanggalLahir: e.target.value }))} />
+                  </div>
                 </div>
                 <Button onClick={handleSubmit} className="w-full" disabled={!form.nis || !form.nama || !form.rombelId}>
                   {editId ? 'Perbarui' : 'Simpan'}
@@ -286,6 +410,9 @@ export function SiswaPage() {
               </div>
             </DialogContent>
           </Dialog>
+          <Button onClick={handleAdd} size="sm">
+            <Plus className="h-4 w-4 mr-1" /> Tambah Siswa
+          </Button>
         </div>
       </div>
 
@@ -301,7 +428,7 @@ export function SiswaPage() {
           <div className="space-y-4 pt-2">
             <CardDescription>
               Import data peserta didik dari file Excel Dapodik. File harus berformat .xlsx dengan kolom: No, Nama, NIPD, JK, NISN, dan Rombel Saat Ini.
-              Rombel akan dibuat otomatis sesuai data di Excel.
+              Rombel akan dibuat otomatis sesuai data di Excel dan siswa akan dimasukkan ke rombel yang sesuai.
             </CardDescription>
 
             {/* Server files selection */}
@@ -374,13 +501,33 @@ export function SiswaPage() {
               </div>
             )}
 
+            {/* Clear existing option */}
+            <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+              <Checkbox
+                id="clear-existing"
+                checked={clearExisting}
+                onCheckedChange={(checked) => setClearExisting(checked === true)}
+                className="data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
+              />
+              <div className="flex-1">
+                <Label htmlFor="clear-existing" className="text-sm font-medium cursor-pointer">
+                  Hapus data sebelumnya sebelum import
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Semua data siswa, nilai, dan rombel yang ada akan dihapus terlebih dahulu
+                </p>
+              </div>
+            </div>
+
             {importing && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">Mengimport data...</span>
+                  <span className="text-sm">Mengimport data siswa...</span>
                 </div>
-                <Progress value={45} className="h-2" />
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div className="bg-emerald-500 h-full rounded-full animate-pulse" style={{ width: '60%' }} />
+                </div>
               </div>
             )}
 
@@ -393,7 +540,7 @@ export function SiswaPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div className="p-3 bg-muted rounded-lg text-center">
                     <p className="text-2xl font-bold text-emerald-600">{importResult.rombelCreated}</p>
                     <p className="text-xs text-muted-foreground">Rombel Baru</p>
@@ -401,8 +548,11 @@ export function SiswaPage() {
                   </div>
                   <div className="p-3 bg-muted rounded-lg text-center">
                     <p className="text-2xl font-bold text-emerald-600">{importResult.siswaCreated}</p>
-                    <p className="text-xs text-muted-foreground">Siswa Diimport</p>
-                    <p className="text-xs text-muted-foreground">(dari {importResult.siswaTotal} total)</p>
+                    <p className="text-xs text-muted-foreground">Siswa Baru</p>
+                  </div>
+                  <div className="p-3 bg-muted rounded-lg text-center">
+                    <p className="text-2xl font-bold text-teal-600">{importResult.siswaUpdated}</p>
+                    <p className="text-xs text-muted-foreground">Diperbarui</p>
                   </div>
                 </div>
 
@@ -458,21 +608,23 @@ export function SiswaPage() {
               <TableRow>
                 <TableHead className="w-12">No</TableHead>
                 <TableHead>NIS</TableHead>
+                <TableHead>NISN</TableHead>
                 <TableHead>Nama</TableHead>
                 <TableHead className="w-16">L/P</TableHead>
+                <TableHead className="hidden md:table-cell">Tempat Lahir</TableHead>
                 <TableHead>Rombel</TableHead>
                 <TableHead className="w-24 text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.length === 0 ? (
+              {data.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                    {data.length === 0 ? (
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    {totalSiswa === 0 ? (
                       <div className="space-y-2">
                         <p>Belum ada data siswa</p>
                         <Button variant="outline" size="sm" onClick={openImportDialog}>
-                          <Upload className="h-4 w-4 mr-1" /> Import dari Excel
+                          <Upload className="h-4 w-4 mr-1" /> Import dari Excel Dapodik
                         </Button>
                       </div>
                     ) : (
@@ -481,13 +633,19 @@ export function SiswaPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((item, idx) => (
+                data.map((item, idx) => (
                   <TableRow key={item.id}>
-                    <TableCell>{idx + 1}</TableCell>
+                    <TableCell>{(page - 1) * PAGE_SIZE + idx + 1}</TableCell>
                     <TableCell className="font-mono text-sm">{item.nis}</TableCell>
+                    <TableCell className="font-mono text-sm">{item.nisn !== '-' ? item.nisn : '-'}</TableCell>
                     <TableCell className="font-medium">{item.nama}</TableCell>
                     <TableCell><Badge variant={item.jenisKelamin === 'L' ? 'default' : 'secondary'}>{item.jenisKelamin}</Badge></TableCell>
-                    <TableCell>{item.rombel?.nama ?? '-'}</TableCell>
+                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{item.tempatLahir !== '-' ? item.tempatLahir : '-'}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={kelasColor(item.rombel?.kelas ?? 10)}>
+                        {item.rombel?.nama ?? '-'}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
@@ -521,7 +679,35 @@ export function SiswaPage() {
           </Table>
         </CardContent>
       </Card>
-      <p className="text-xs text-muted-foreground">Menampilkan {filtered.length} dari {data.length} siswa</p>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          Menampilkan {data.length} dari {totalSiswa} siswa
+          {totalPages > 1 && ` (Halaman ${page} dari ${totalPages})`}
+        </p>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm">{page} / {totalPages}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -1,13 +1,39 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const data = await db.siswa.findMany({
-      include: { rombel: true },
-      orderBy: [{ nama: 'asc' }],
-    })
-    return NextResponse.json(data)
+    const { searchParams } = new URL(request.url)
+    const rombelId = searchParams.get('rombelId')
+    const search = searchParams.get('search')
+    const limit = parseInt(searchParams.get('limit') || '0') // 0 means all
+    const page = parseInt(searchParams.get('page') || '1')
+
+    const where: Record<string, unknown> = {}
+    
+    if (rombelId) {
+      where.rombelId = rombelId
+    }
+    
+    if (search) {
+      where.OR = [
+        { nama: { contains: search } },
+        { nis: { contains: search } },
+        { nisn: { contains: search } },
+      ]
+    }
+
+    const [data, total] = await Promise.all([
+      db.siswa.findMany({
+        where,
+        include: { rombel: true },
+        orderBy: [{ nama: 'asc' }],
+        ...(limit > 0 ? { take: limit, skip: (page - 1) * limit } : {}),
+      }),
+      db.siswa.count({ where }),
+    ])
+
+    return NextResponse.json(limit > 0 ? { data, total, page, limit } : data)
   } catch (error) {
     console.error(error)
     return NextResponse.json({ error: 'Gagal memuat data' }, { status: 500 })
@@ -25,8 +51,11 @@ export async function POST(request: Request) {
     const data = await db.siswa.create({
       data: {
         nis: body.nis,
+        nisn: body.nisn || '-',
         nama: body.nama,
         jenisKelamin: body.jenisKelamin,
+        tempatLahir: body.tempatLahir || '-',
+        tanggalLahir: body.tanggalLahir || '-',
         rombelId: body.rombelId,
       },
       include: { rombel: true },
@@ -52,8 +81,11 @@ export async function PUT(request: Request) {
       where: { id: body.id },
       data: {
         nis: body.nis,
+        nisn: body.nisn || '-',
         nama: body.nama,
         jenisKelamin: body.jenisKelamin,
+        tempatLahir: body.tempatLahir || '-',
+        tanggalLahir: body.tanggalLahir || '-',
         rombelId: body.rombelId,
       },
       include: { rombel: true },

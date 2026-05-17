@@ -4,37 +4,39 @@ import * as XLSX from 'xlsx'
 import path from 'path'
 import fs from 'fs'
 
+export const maxDuration = 300 // 5 minutes timeout
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const filePath = body.filePath as string
+    const clearExisting = body.clearExisting as boolean | undefined
 
     if (!filePath) {
       return NextResponse.json({ error: 'filePath diperlukan' }, { status: 400 })
     }
 
     const fullPath = path.join(process.cwd(), 'upload', filePath)
-    
+
     if (!fs.existsSync(fullPath)) {
       return NextResponse.json({ error: 'File tidak ditemukan' }, { status: 404 })
     }
 
-    // Read Excel file using readFileSync + XLSX.read (works in serverless/edge)
+    // Read Excel file
     const fileBuffer = fs.readFileSync(fullPath)
     const workbook = XLSX.read(fileBuffer, { type: 'buffer' })
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
-    
-    // Parse to JSON - header is row 1 & 2, data starts from row 3
+
+    // Parse to JSON - Dapodik format: row 0 & 1 are headers, data starts from row 2 (index 2)
     const rawData: unknown[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
 
     if (rawData.length < 3) {
       return NextResponse.json({ error: 'File Excel kosong atau format tidak sesuai' }, { status: 400 })
     }
 
-    // Column mapping based on the Dapodik format:
+    // Column mapping based on Dapodik format:
     // 0: No, 1: Nama, 2: NIPD, 3: JK, 4: NISN, 5: Tempat Lahir, 6: Tanggal Lahir, 42: Rombel Saat Ini
-    const COL_NO = 0
     const COL_NAMA = 1
     const COL_NIPD = 2
     const COL_JK = 3
@@ -45,9 +47,17 @@ export async function POST(request: Request) {
 
     // Extract unique rombel names and student data
     const rombelSet = new Map<string, { kelas: number; nama: string; jurusan: string }>()
-    const siswaData: { no: number; nama: string; nipd: string; nisn: string; jk: string; tempatLahir: string; tanggalLahir: string; rombelNama: string }[] = []
+    const siswaData: {
+      nama: string
+      nipd: string
+      nisn: string
+      jk: string
+      tempatLahir: string
+      tanggalLahir: string
+      rombelNama: string
+    }[] = []
 
-    for (let i = 2; i < rawData.length; i++) { // Start from row 3 (index 2)
+    for (let i = 2; i < rawData.length; i++) {
       const row = rawData[i]
       if (!row || !row[COL_NAMA]) continue
 
@@ -69,7 +79,6 @@ export async function POST(request: Request) {
       }
 
       siswaData.push({
-        no: Number(row[COL_NO]) || i - 1,
         nama,
         nipd,
         nisn,
@@ -84,76 +93,116 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Tidak ada data siswa yang valid di file Excel' }, { status: 400 })
     }
 
-    // Check for existing data
-    const existingRombel = await db.rombel.count()
-    const existingSiswa = await db.siswa.count()
+    // Clear existing data if requested
+    if (clearExisting) {
+      await db.eligible.deleteMany({})
+      await db.nilai.deleteMany({})
+      await db.siswa.deleteMany({})
+      await db.rombel.deleteMany({})
+    }
 
-    // Create rombels
+    // Create all rombels using batch for performance
     const rombelMap = new Map<string, string>() // rombelNama -> rombelId
     let rombelCreated = 0
 
-    for (const [nama, info] of rombelSet) {
-      const existing = await db.rombel.findFirst({ where: { nama: nama } })
-      if (existing) {
-        rombelMap.set(nama, existing.id)
-      } else {
-        const rombel = await db.rombel.create({
-          data: {
-            nama: info.nama,
-            kelas: info.kelas,
-            jurusan: info.jurusan,
-            tahunAjaran: '2024/2025',
-            waliKelas: '-',
-          },
-        })
-        rombelMap.set(nama, rombel.id)
-        rombelCreated++
-      }
+    // Get all existing rombels in one query
+    const existingRombels = await db.rombel.findMany()
+    for (const r of existingRombels) {
+      rombelMap.set(r.nama, r.id)
     }
 
-    // Create siswa
+    for (const [nama, info] of rombelSet) {
+      if (rombelMap.has(nama)) continue
+
+      const rombel = await db.rombel.create({
+        data: {
+          nama: info.nama,
+          kelas: info.kelas,
+          jurusan: info.jurusan,
+          tahunAjaran: '2024/2025',
+          waliKelas: '-',
+        },
+      })
+      rombelMap.set(nama, rombel.id)
+      rombelCreated++
+    }
+
+    // Create siswa - batch process for better performance
     let siswaCreated = 0
+    let siswaUpdated = 0
     let siswaSkipped = 0
     const errors: string[] = []
 
-    for (const siswa of siswaData) {
-      const rombelId = rombelMap.get(siswa.rombelNama)
-      if (!rombelId) {
-        errors.push(`Rombel tidak ditemukan untuk ${siswa.nama}: ${siswa.rombelNama}`)
-        siswaSkipped++
-        continue
-      }
+    // Get all existing NIS values for duplicate checking
+    const existingNisList = await db.siswa.findMany({ select: { id: true, nis: true, nisn: true } })
+    const nisMap = new Map(existingNisList.map(s => [s.nis, s.id]))
 
-      // Use NIPD as NIS (it's the student ID number)
-      const nis = siswa.nipd || siswa.nisn || String(siswa.no)
+    // Process in batches of 50
+    const BATCH_SIZE = 50
+    for (let batch = 0; batch < siswaData.length; batch += BATCH_SIZE) {
+      const batchData = siswaData.slice(batch, batch + BATCH_SIZE)
 
-      if (!nis) {
-        errors.push(`NIS kosong untuk ${siswa.nama}`)
-        siswaSkipped++
-        continue
-      }
+      for (const siswa of batchData) {
+        const rombelId = rombelMap.get(siswa.rombelNama)
+        if (!rombelId) {
+          errors.push(`Rombel tidak ditemukan untuk ${siswa.nama}: ${siswa.rombelNama}`)
+          siswaSkipped++
+          continue
+        }
 
-      // Check if siswa already exists by NIS
-      const existingSiswa = await db.siswa.findUnique({ where: { nis } })
-      if (existingSiswa) {
-        siswaSkipped++
-        continue
-      }
+        // Use NIPD as NIS (it's the student ID number in Dapodik)
+        const nis = siswa.nipd || siswa.nisn
 
-      try {
-        await db.siswa.create({
-          data: {
-            nis,
-            nama: siswa.nama,
-            jenisKelamin: siswa.jk,
-            rombelId,
-          },
-        })
-        siswaCreated++
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : 'Unknown error'
-        errors.push(`Gagal membuat siswa ${siswa.nama}: ${msg}`)
-        siswaSkipped++
+        if (!nis) {
+          errors.push(`NIS kosong untuk ${siswa.nama}`)
+          siswaSkipped++
+          continue
+        }
+
+        // Check if siswa already exists by NIS
+        const existingId = nisMap.get(nis)
+        if (existingId) {
+          // Update existing siswa
+          try {
+            await db.siswa.update({
+              where: { id: existingId },
+              data: {
+                nisn: siswa.nisn || undefined,
+                nama: siswa.nama,
+                jenisKelamin: siswa.jk,
+                tempatLahir: siswa.tempatLahir || undefined,
+                tanggalLahir: siswa.tanggalLahir || undefined,
+                rombelId,
+              },
+            })
+            siswaUpdated++
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Unknown error'
+            errors.push(`Gagal update siswa ${siswa.nama}: ${msg}`)
+            siswaSkipped++
+          }
+          continue
+        }
+
+        try {
+          await db.siswa.create({
+            data: {
+              nis,
+              nisn: siswa.nisn || '-',
+              nama: siswa.nama,
+              jenisKelamin: siswa.jk,
+              tempatLahir: siswa.tempatLahir || '-',
+              tanggalLahir: siswa.tanggalLahir || '-',
+              rombelId,
+            },
+          })
+          nisMap.set(nis, 'created')
+          siswaCreated++
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : 'Unknown error'
+          errors.push(`Gagal membuat siswa ${siswa.nama}: ${msg}`)
+          siswaSkipped++
+        }
       }
     }
 
@@ -162,11 +211,10 @@ export async function POST(request: Request) {
       rombelCreated,
       rombelTotal: rombelSet.size,
       siswaCreated,
+      siswaUpdated,
       siswaSkipped,
       siswaTotal: siswaData.length,
       errors: errors.slice(0, 20),
-      existingRombel,
-      existingSiswa,
     })
   } catch (error) {
     console.error('Import error:', error)
@@ -183,11 +231,9 @@ function parseKelas(rombelNama: string): number {
 }
 
 function parseJurusan(rombelNama: string): string {
-  // The rombel names in this school don't follow IPA/IPS/Bahasa pattern
-  // They use regional names like "Lasara", "Kalabubu", etc.
-  // We'll just use a generic classification based on the school type
-  const upper = rombelNama.toUpperCase()
-  // Default to 'Umum' since SMA Negeri doesn't have specific jurusan in class names
+  // The rombel names in this school use cultural/regional names
+  // like "Lasara", "Kalabubu", "Toho", "Baluse", etc.
+  // Default to 'Umum' since the names don't indicate specific jurusan
   return 'Umum'
 }
 

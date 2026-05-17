@@ -20,16 +20,19 @@ model Rombel {
 }
 
 model Siswa {
-  id           String   @id @default(cuid())
-  nis          String   @unique
-  nama         String
-  jenisKelamin String   // L, P
-  rombelId     String
-  rombel       Rombel   @relation(fields: [rombelId], references: [id], onDelete: Cascade)
-  nilai        Nilai[]
-  eligible     Eligible?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(cuid())
+  nis           String   @unique
+  nisn          String   @default("-")
+  nama          String
+  jenisKelamin  String   // L, P
+  tempatLahir   String   @default("-")
+  tanggalLahir  String   @default("-")
+  rombelId      String
+  rombel        Rombel   @relation(fields: [rombelId], references: [id], onDelete: Cascade)
+  nilai         Nilai[]
+  eligible      Eligible?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Nilai {

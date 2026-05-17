@@ -32,14 +32,29 @@ export function EligiblePage() {
 
   const fetchData = async () => {
     try {
-      const [eligibleRes, siswaRes] = await Promise.all([
-        fetch('/api/eligible'),
-        fetch('/api/siswa'),
-      ])
+      // Get all rombels first to find kelas 12 ones
+      const rombelRes = await fetch('/api/rombel')
+      const rombelJson = await rombelRes.json()
+      const kelas12Rombels = rombelJson.filter((r: Rombel) => r.kelas === 12)
+      
+      // Fetch eligible data
+      const eligibleRes = await fetch('/api/eligible')
       const eligibleJson = await eligibleRes.json()
-      const siswaJson: Siswa[] = await siswaRes.json()
       setData(eligibleJson)
-      setSiswaKelas12(siswaJson.filter(s => s.rombel?.kelas === 12))
+      
+      // Fetch siswa from kelas 12 rombels only (in batches to avoid overload)
+      const allSiswaKelas12: Siswa[] = []
+      for (const rombel of kelas12Rombels) {
+        const siswaRes = await fetch(`/api/siswa?rombelId=${rombel.id}&limit=100`)
+        const siswaJson = await siswaRes.json()
+        if (siswaJson.data) {
+          allSiswaKelas12.push(...siswaJson.data)
+        } else if (Array.isArray(siswaJson)) {
+          allSiswaKelas12.push(...siswaJson)
+        }
+      }
+      setSiswaKelas12(allSiswaKelas12)
+      setRombelKelas12(kelas12Rombels)
     } catch {
       toast({ title: 'Gagal memuat data', variant: 'destructive' })
     } finally {
@@ -49,7 +64,8 @@ export function EligiblePage() {
 
   useEffect(() => { fetchData() }, [])
 
-  const rombelKelas12 = Array.from(new Map(siswaKelas12.map(s => [s.rombel?.id, s.rombel])).values())
+  // rombelKelas12 is now fetched separately
+  const [rombelKelas12, setRombelKelas12] = useState<Rombel[]>([])
 
   const filteredSiswaKelas12 = filterRombel === 'all'
     ? siswaKelas12

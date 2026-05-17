@@ -47,14 +47,29 @@ export function NilaiPage() {
 
   const fetchData = async () => {
     try {
-      const [nilaiRes, siswaRes, rombelRes] = await Promise.all([
+      const [nilaiRes, rombelRes] = await Promise.all([
         fetch('/api/nilai'),
-        fetch('/api/siswa'),
         fetch('/api/rombel'),
       ])
       setData(await nilaiRes.json())
-      setSiswaList(await siswaRes.json())
       setRombelList(await rombelRes.json())
+      
+      // Fetch siswa with rombel filter when needed
+      if (filterRombel !== 'all') {
+        const siswaRes = await fetch(`/api/siswa?rombelId=${filterRombel}&limit=100`)
+        const siswaJson = await siswaRes.json()
+        setSiswaList(siswaJson.data || siswaJson)
+      } else {
+        // Fetch all siswa in batches by rombel
+        const allSiswa: Siswa[] = []
+        for (const r of rombelList) {
+          const res = await fetch(`/api/siswa?rombelId=${r.id}&limit=100`)
+          const json = await res.json()
+          if (json.data) allSiswa.push(...json.data)
+          else if (Array.isArray(json)) allSiswa.push(...json)
+        }
+        setSiswaList(allSiswa)
+      }
     } catch {
       toast({ title: 'Gagal memuat data', variant: 'destructive' })
     } finally {

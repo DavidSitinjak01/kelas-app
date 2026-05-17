@@ -24,13 +24,25 @@ export function RekomendasiPtPage() {
   const [jurusanMinat, setJurusanMinat] = useState('')
 
   useEffect(() => {
-    fetch('/api/siswa')
-      .then(res => res.json())
-      .then(data => {
-        setSiswaList(data)
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
+    // Load rombels first, then load siswa per rombel
+    const loadSiswa = async () => {
+      try {
+        const rombelRes = await fetch('/api/rombel')
+        const rombelJson = await rombelRes.json()
+        const allSiswa: Siswa[] = []
+        for (const r of rombelJson) {
+          const siswaRes = await fetch(`/api/siswa?rombelId=${r.id}&limit=100`)
+          const siswaJson = await siswaRes.json()
+          if (siswaJson.data) allSiswa.push(...siswaJson.data)
+          else if (Array.isArray(siswaJson)) allSiswa.push(...siswaJson)
+        }
+        setSiswaList(allSiswa)
+      } catch {
+        // ignore
+      }
+      setLoading(false)
+    }
+    loadSiswa()
   }, [])
 
   useEffect(() => {
