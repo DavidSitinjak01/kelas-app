@@ -14,8 +14,8 @@ export async function POST() {
     for (const siswa of siswaKelas12) {
       if (siswa.nilai.length === 0) continue
 
-      const rataRata = siswa.nilai.reduce((sum, n) => sum + n.nilaiAsli, 0) / siswa.nilai.length
-      const diBawahKKM = siswa.nilai.filter(n => n.nilaiAsli < 60).length
+      const rataRata = siswa.nilai.reduce((sum, n) => sum + n.rerata, 0) / siswa.nilai.length
+      const diBawahKKM = siswa.nilai.filter(n => n.rerata < 60).length
 
       let status: string
       let keterangan: string

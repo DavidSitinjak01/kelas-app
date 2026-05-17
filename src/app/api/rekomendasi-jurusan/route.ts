@@ -12,15 +12,15 @@ export async function POST(request: Request) {
 
     const zai = await ZAI.create()
 
-    const nilaiSummary = nilai.map((n: { mapel: string; nilaiAsli: number; nilaiUp: number }) =>
-      `${n.mapel}: ${n.nilaiAsli} (asli), ${n.nilaiUp} (up)`
+    const nilaiSummary = nilai.map((n: { mapel: string; rerata: number }) =>
+      `${n.mapel}: ${n.rerata}`
     ).join('\n')
 
-    const rataRata = nilai.reduce((a: number, n: { nilaiAsli: number }) => a + n.nilaiAsli, 0) / nilai.length
+    const rataRata = nilai.reduce((a: number, n: { rerata: number }) => a + n.rerata, 0) / nilai.length
     const mapelUnggulan = [...nilai]
-      .sort((a: { nilaiAsli: number }, b: { nilaiAsli: number }) => b.nilaiAsli - a.nilaiAsli)
+      .sort((a: { rerata: number }, b: { rerata: number }) => b.rerata - a.rerata)
       .slice(0, 5)
-      .map((n: { mapel: string; nilaiAsli: number }) => `${n.mapel} (${n.nilaiAsli})`)
+      .map((n: { mapel: string; rerata: number }) => `${n.mapel} (${n.rerata})`)
       .join(', ')
 
     const completion = await zai.chat.completions.create({
@@ -39,7 +39,7 @@ Jurusan SMA: ${jurusan}
 Rata-rata nilai: ${rataRata.toFixed(1)}
 Mata pelajaran unggulan: ${mapelUnggulan}
 
-Detail Nilai:
+Detail Nilai (Rerata per mapel):
 ${nilaiSummary}
 
 Berikan rekomendasi dalam format berikut:

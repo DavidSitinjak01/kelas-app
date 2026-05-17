@@ -12,12 +12,11 @@ export async function POST(request: Request) {
 
     const zai = await ZAI.create()
 
-    const nilaiSummary = nilai.map((n: { mapel: string; nilaiAsli: number; nilaiUp: number }) =>
-      `${n.mapel}: ${n.nilaiAsli} (asli), ${n.nilaiUp} (up)`
+    const nilaiSummary = nilai.map((n: { mapel: string; rerata: number }) =>
+      `${n.mapel}: ${n.rerata}`
     ).join('\n')
 
-    const rataRata = nilai.reduce((a: number, n: { nilaiAsli: number }) => a + n.nilaiAsli, 0) / nilai.length
-    const rataUp = nilai.reduce((a: number, n: { nilaiUp: number }) => a + n.nilaiUp, 0) / nilai.length
+    const rataRata = nilai.reduce((a: number, n: { rerata: number }) => a + n.rerata, 0) / nilai.length
 
     const jurusanMinatText = jurusanMinat
       ? `Jurusan yang diminati: ${jurusanMinat}`
@@ -36,11 +35,10 @@ export async function POST(request: Request) {
 Nama: ${nama}
 Kelas: ${kelas}
 Jurusan SMA: ${jurusan}
-Rata-rata nilai asli: ${rataRata.toFixed(1)}
-Rata-rata nilai up: ${rataUp.toFixed(1)}
+Rata-rata nilai: ${rataRata.toFixed(1)}
 ${jurusanMinatText}
 
-Detail Nilai:
+Detail Nilai (Rerata per mapel):
 ${nilaiSummary}
 
 Berikan rekomendasi dalam format berikut:

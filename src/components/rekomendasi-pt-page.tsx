@@ -12,7 +12,7 @@ import { Building2, Sparkles, Loader2 } from 'lucide-react'
 
 interface Rombel { id: string; nama: string; kelas: number; jurusan: string }
 interface Siswa { id: string; nis: string; nama: string; rombelId: string; rombel: Rombel }
-interface Nilai { id: string; siswaId: string; mataPelajaran: string; nilaiAsli: number; nilaiUp: number }
+interface Nilai { id: string; siswaId: string; mataPelajaran: string; rerata: number }
 
 export function RekomendasiPtPage() {
   const [siswaList, setSiswaList] = useState<Siswa[]>([])
@@ -71,8 +71,7 @@ export function RekomendasiPtPage() {
           jurusanMinat: jurusanMinat || undefined,
           nilai: nilaiSiswa.map(n => ({
             mapel: n.mataPelajaran,
-            nilaiAsli: n.nilaiAsli,
-            nilaiUp: n.nilaiUp,
+            rerata: n.rerata,
           })),
         }),
       })
@@ -145,14 +144,12 @@ export function RekomendasiPtPage() {
                 <div className="flex flex-wrap gap-2">
                   {nilaiSiswa.map(n => (
                     <Badge key={n.id} variant="outline" className="text-xs">
-                      {n.mataPelajaran}: {n.nilaiAsli}
-                      {n.nilaiUp !== n.nilaiAsli && <span className="text-emerald-600 ml-1">→ {n.nilaiUp}</span>}
+                      {n.mataPelajaran}: {n.rerata}
                     </Badge>
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Rata-rata: {(nilaiSiswa.reduce((a, n) => a + n.nilaiAsli, 0) / nilaiSiswa.length).toFixed(1)} (asli) |{' '}
-                  {(nilaiSiswa.reduce((a, n) => a + n.nilaiUp, 0) / nilaiSiswa.length).toFixed(1)} (up)
+                  Rata-rata: {(nilaiSiswa.reduce((a, n) => a + n.rerata, 0) / nilaiSiswa.length).toFixed(2)}
                 </p>
               </div>
             </>

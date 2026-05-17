@@ -38,7 +38,7 @@ export async function GET() {
       .sort((a, b) => b.total - a.total)
 
     const nilaiAvg = await db.nilai.aggregate({
-      _avg: { nilaiAsli: true },
+      _avg: { rerata: true },
     })
 
     return NextResponse.json({
@@ -48,7 +48,7 @@ export async function GET() {
       totalEligible,
       siswaPerKelas: siswaPerKelasResult,
       siswaPerJurusan: siswaPerJurusanResult,
-      rataRataNilai: nilaiAvg._avg.nilaiAsli ?? 0,
+      rataRataNilai: nilaiAvg._avg.rerata ?? 0,
     })
   } catch (error) {
     console.error(error)

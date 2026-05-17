@@ -7,9 +7,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 interface Rombel { id: string; nama: string; kelas: number; jurusan: string }
 interface AnalisaData {
-  rataRataPerMapel: { mapel: string; asli: number; up: number }[]
+  rataRataPerMapel: { mapel: string; rerata: number }[]
   distribusiNilai: { range: string; jumlah: number }[]
-  perRombel: { rombel: string; rataAsli: number; rataUp: number }[]
+  perRombel: { rombel: string; rataRata: number }[]
   topSiswa: { nama: string; rataRata: number }[]
 }
 
@@ -19,13 +19,12 @@ export function AnalisaPage() {
   const [data, setData] = useState<AnalisaData | null>(null)
   const [loading, setLoading] = useState(true)
   const [filterRombel, setFilterRombel] = useState('all')
-  const [filterTipe, setFilterTipe] = useState<'asli' | 'up'>('asli')
   const [rombelList, setRombelList] = useState<Rombel[]>([])
 
   const fetchData = async () => {
     try {
       const [analisaRes, rombelRes] = await Promise.all([
-        fetch(`/api/analisa?rombelId=${filterRombel}&tipe=${filterTipe}`),
+        fetch(`/api/analisa?rombelId=${filterRombel}`),
         fetch('/api/rombel'),
       ])
       setData(await analisaRes.json())
@@ -39,7 +38,7 @@ export function AnalisaPage() {
 
   useEffect(() => {
     fetchData()
-  }, [filterRombel, filterTipe])
+  }, [filterRombel])
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
@@ -56,13 +55,6 @@ export function AnalisaPage() {
               {rombelList.map(r => (
                 <SelectItem key={r.id} value={r.id}>{r.nama}</SelectItem>
               ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterTipe} onValueChange={v => setFilterTipe(v as 'asli' | 'up')}>
-            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="asli">Nilai Asli</SelectItem>
-              <SelectItem value="up">Nilai Up</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -87,19 +79,12 @@ export function AnalisaPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={filterTipe} onValueChange={v => setFilterTipe(v as 'asli' | 'up')}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="asli">Nilai Asli</SelectItem>
-            <SelectItem value="up">Nilai Up</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Rata-rata per Mata Pelajaran</CardTitle>
+            <CardTitle className="text-base">Rata-rata Rerata per Mata Pelajaran</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -108,8 +93,7 @@ export function AnalisaPage() {
                 <XAxis dataKey="mapel" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={60} />
                 <YAxis domain={[0, 100]} />
                 <Tooltip />
-                <Bar dataKey="asli" fill="#059669" name="Nilai Asli" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="up" fill="#0d9488" name="Nilai Up" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="rerata" fill="#059669" name="Rerata" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -153,8 +137,7 @@ export function AnalisaPage() {
                 <XAxis dataKey="rombel" tick={{ fontSize: 11 }} />
                 <YAxis domain={[0, 100]} />
                 <Tooltip />
-                <Bar dataKey="rataAsli" fill="#059669" name="Rata-rata Asli" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="rataUp" fill="#0d9488" name="Rata-rata Up" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="rataRata" fill="#059669" name="Rata-rata" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -170,8 +153,7 @@ export function AnalisaPage() {
                 <PolarGrid />
                 <PolarAngleAxis dataKey="mapel" tick={{ fontSize: 10 }} />
                 <PolarRadiusAxis domain={[0, 100]} />
-                <Radar name="Nilai Asli" dataKey="asli" stroke="#059669" fill="#059669" fillOpacity={0.3} />
-                <Radar name="Nilai Up" dataKey="up" stroke="#0d9488" fill="#0d9488" fillOpacity={0.3} />
+                <Radar name="Rerata" dataKey="rerata" stroke="#059669" fill="#059669" fillOpacity={0.3} />
                 <Legend />
                 <Tooltip />
               </RadarChart>

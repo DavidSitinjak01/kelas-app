@@ -31,3 +31,42 @@ Stage Summary:
 - Rombels auto-created from Excel data with parsed kelas (X→10, XI→11, XII→12) and jurusan=Umum
 - Server-side pagination added to handle large datasets without crashing
 - All pages updated to use paginated/filtered API calls
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Add ranking features to Nilai page and import leger Excel data
+
+Work Log:
+- Analyzed 3 uploaded leger Excel files (X Baluse, XI Kalabubu, XII Baluse)
+- Discovered format: Row 0-3 headers, Row 4=subject names, Row 5=empty, Row 6=Smt headers, Row 7+=data
+- Each subject has 7 columns: Smt1-Smt6 + rerata
+- Redesigned Prisma Nilai model: removed nilaiAsli/nilaiUp/semester/tahunAjaran, added smt1-smt6 + rerata + unique(siswaId, mataPelajaran)
+- Ran db:push to apply schema changes
+- Created /api/import-leger route for importing leger Excel files matching exact Dapodik format
+- Created /api/peringkat route with optimized groupBy queries (type=kelas & type=tingkat)
+- Imported all 3 leger files: 108 students with nilai, 1931 total nilai records
+  - X Baluse: 36 siswa, 17 mapel, 576 nilai
+  - XI Kalabubu: 36 siswa, 18 mapel, 648 nilai
+  - XII Baluse: 36 siswa, 21 mapel, 707 nilai
+- Completely redesigned nilai-page.tsx with 3 tabs:
+  - Peringkat Kelas: select rombel → see student rankings within class
+  - Peringkat Tingkat: select kelas (X/XI/XII) → see rankings across all rombels in that grade
+  - Detail Nilai: full grade details with Smt1-6 and rerata per subject
+- Added Top 3 podium cards with trophy/medal icons for both ranking tabs
+- Added rombel summary badges in Peringkat Tingkat showing avg per rombel
+- Updated dashboard API to use rerata instead of nilaiAsli
+- Fixed analisa API and page to use rerata instead of asli/up
+- Fixed eligible auto API to use rerata
+- Fixed rekomendasi-jurusan and rekomendasi-pt APIs and pages to use rerata
+- Added Import Leger dialog with multi-file upload support
+- Ran lint check - no errors
+
+Stage Summary:
+- Nilai model redesigned to match Dapodik leger format (smt1-smt6 + rerata)
+- 1931 nilai records imported from 3 leger files for 108 students
+- Peringkat per Kelas feature: ranking within a specific rombel
+- Peringkat per Tingkat feature: ranking across all rombels of a grade level (X/XI/XII)
+- Import Leger feature: upload multiple .xlsx leger files at once
+- All old nilaiAsli/nilaiUp references replaced with rerata throughout codebase
+- Peringkat API optimized with Prisma groupBy for memory efficiency

@@ -11,7 +11,7 @@ model Rombel {
   id          String   @id @default(cuid())
   nama        String
   kelas       Int      // 10, 11, 12
-  jurusan     String   // IPA, IPS, Bahasa
+  jurusan     String   // IPA, IPS, Bahasa, Umum
   tahunAjaran String
   waliKelas   String
   siswa       Siswa[]
@@ -40,12 +40,17 @@ model Nilai {
   siswaId       String
   siswa         Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
   mataPelajaran String
-  nilaiAsli     Float
-  nilaiUp       Float
-  semester      String   // "1" or "2"
-  tahunAjaran   String
+  smt1          Float    @default(0)
+  smt2          Float    @default(0)
+  smt3          Float    @default(0)
+  smt4          Float    @default(0)
+  smt5          Float    @default(0)
+  smt6          Float    @default(0)
+  rerata        Float    @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@unique([siswaId, mataPelajaran])
 }
 
 model Eligible {

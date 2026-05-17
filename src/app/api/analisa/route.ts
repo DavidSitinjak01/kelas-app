@@ -5,7 +5,6 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const rombelId = searchParams.get('rombelId')
-    const tipe = searchParams.get('tipe') ?? 'asli'
 
     const where = rombelId && rombelId !== 'all'
       ? { siswa: { rombelId } }
@@ -25,22 +24,20 @@ export async function GET(request: Request) {
       })
     }
 
-    // Rata-rata per mapel
-    const mapelAgg: Record<string, { asli: number[]; up: number[] }> = {}
+    // Rata-rata per mapel (using rerata from each subject)
+    const mapelAgg: Record<string, number[]> = {}
     for (const n of nilai) {
       if (!mapelAgg[n.mataPelajaran]) {
-        mapelAgg[n.mataPelajaran] = { asli: [], up: [] }
+        mapelAgg[n.mataPelajaran] = []
       }
-      mapelAgg[n.mataPelajaran].asli.push(n.nilaiAsli)
-      mapelAgg[n.mataPelajaran].up.push(n.nilaiUp)
+      mapelAgg[n.mataPelajaran].push(n.rerata)
     }
     const rataRataPerMapel = Object.entries(mapelAgg).map(([mapel, vals]) => ({
       mapel,
-      asli: Math.round((vals.asli.reduce((a, b) => a + b, 0) / vals.asli.length) * 10) / 10,
-      up: Math.round((vals.up.reduce((a, b) => a + b, 0) / vals.up.length) * 10) / 10,
-    })).sort((a, b) => b[tipe as keyof Pick<typeof a, 'asli' | 'up'>] as number - a[tipe as keyof Pick<typeof a, 'asli' | 'up'>] as number)
+      rerata: Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100,
+    })).sort((a, b) => b.rerata - a.rerata)
 
-    // Distribusi nilai
+    // Distribusi nilai (based on rerata)
     const ranges = [
       { range: '0-39', min: 0, max: 39 },
       { range: '40-59', min: 40, max: 59 },
@@ -51,25 +48,20 @@ export async function GET(request: Request) {
     ]
     const distribusiNilai = ranges.map(r => ({
       range: r.range,
-      jumlah: nilai.filter(n => {
-        const val = tipe === 'asli' ? n.nilaiAsli : n.nilaiUp
-        return val >= r.min && val <= r.max
-      }).length,
+      jumlah: nilai.filter(n => n.rerata >= r.min && n.rerata <= r.max).length,
     }))
 
     // Per rombel
-    const rombelAgg: Record<string, { asli: number[]; up: number[]; nama: string }> = {}
+    const rombelAgg: Record<string, { vals: number[]; nama: string }> = {}
     for (const n of nilai) {
       const rId = n.siswa.rombelId
       const rNama = n.siswa.rombel?.nama ?? 'Unknown'
-      if (!rombelAgg[rId]) rombelAgg[rId] = { asli: [], up: [], nama: rNama }
-      rombelAgg[rId].asli.push(n.nilaiAsli)
-      rombelAgg[rId].up.push(n.nilaiUp)
+      if (!rombelAgg[rId]) rombelAgg[rId] = { vals: [], nama: rNama }
+      rombelAgg[rId].vals.push(n.rerata)
     }
     const perRombel = Object.values(rombelAgg).map(r => ({
       rombel: r.nama,
-      rataAsli: Math.round((r.asli.reduce((a, b) => a + b, 0) / r.asli.length) * 10) / 10,
-      rataUp: Math.round((r.up.reduce((a, b) => a + b, 0) / r.up.length) * 10) / 10,
+      rataRata: Math.round((r.vals.reduce((a, b) => a + b, 0) / r.vals.length) * 100) / 100,
     }))
 
     // Top siswa
@@ -77,13 +69,12 @@ export async function GET(request: Request) {
     for (const n of nilai) {
       const sId = n.siswaId
       const sNama = n.siswa.nama
-      const val = tipe === 'asli' ? n.nilaiAsli : n.nilaiUp
       if (!siswaAgg[sId]) siswaAgg[sId] = { nama: sNama, total: 0, count: 0 }
-      siswaAgg[sId].total += val
+      siswaAgg[sId].total += n.rerata
       siswaAgg[sId].count += 1
     }
     const topSiswa = Object.values(siswaAgg)
-      .map(s => ({ nama: s.nama, rataRata: Math.round((s.total / s.count) * 10) / 10 }))
+      .map(s => ({ nama: s.nama, rataRata: Math.round((s.total / s.count) * 100) / 100 }))
       .sort((a, b) => b.rataRata - a.rataRata)
       .slice(0, 10)
 
