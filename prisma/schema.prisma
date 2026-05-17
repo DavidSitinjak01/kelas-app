@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Rombel {
+  id          String   @id @default(cuid())
+  nama        String
+  kelas       Int      // 10, 11, 12
+  jurusan     String   // IPA, IPS, Bahasa
+  tahunAjaran String
+  waliKelas   String
+  siswa       Siswa[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Siswa {
+  id           String   @id @default(cuid())
+  nis          String   @unique
+  nama         String
+  jenisKelamin String   // L, P
+  rombelId     String
+  rombel       Rombel   @relation(fields: [rombelId], references: [id], onDelete: Cascade)
+  nilai        Nilai[]
+  eligible     Eligible?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Nilai {
+  id            String   @id @default(cuid())
+  siswaId       String
+  siswa         Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  mataPelajaran String
+  nilaiAsli     Float
+  nilaiUp       Float
+  semester      String   // "1" or "2"
+  tahunAjaran   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Eligible {
+  id          String   @id @default(cuid())
+  siswaId     String   @unique
+  siswa       Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  status      String   // eligible, tidak, bersyarat
+  keterangan  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
