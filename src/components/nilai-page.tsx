@@ -154,6 +154,21 @@ export function NilaiPage() {
     }
   }, [toast, fetchMataPelajaran])
 
+  // Fetch eligible status for kelas 12 students - MUST be defined before useEffect that references it
+  const fetchEligibleStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/eligible')
+      const json = await res.json()
+      const map = new Map<string, string>()
+      for (const e of json) {
+        map.set(e.siswaId, e.status)
+      }
+      setEligibleMap(map)
+    } catch {
+      // silent
+    }
+  }, [])
+
   useEffect(() => { fetchData(); fetchEligibleStatus() }, [fetchData, fetchEligibleStatus])
 
   // Fetch detail nilai when switching to detail tab
@@ -196,21 +211,6 @@ export function NilaiPage() {
       fetchDetail()
     }
   }, [activeTab, filterRombel, filterMapel, page, toast, fetchMataPelajaran])
-
-  // Fetch eligible status for kelas 12 students
-  const fetchEligibleStatus = useCallback(async () => {
-    try {
-      const res = await fetch('/api/eligible')
-      const json = await res.json()
-      const map = new Map<string, string>()
-      for (const e of json) {
-        map.set(e.siswaId, e.status)
-      }
-      setEligibleMap(map)
-    } catch {
-      // silent
-    }
-  }, [])
 
   // Handle eligible status change from peringkat tingkat
   const handleEligibleChange = async (siswaId: string, status: string) => {
