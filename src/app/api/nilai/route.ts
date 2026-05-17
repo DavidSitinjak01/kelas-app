@@ -4,21 +4,45 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
+    const distinct = searchParams.get('distinct')
+
+    // Return distinct mata pelajaran list
+    if (distinct === 'mataPelajaran') {
+      const rombelId = searchParams.get('rombelId')
+      const where: Record<string, unknown> = {}
+      if (rombelId) where.siswa = { rombelId }
+
+      const result = await db.nilai.findMany({
+        where,
+        select: { mataPelajaran: true },
+        distinct: ['mataPelajaran'],
+        orderBy: [{ mataPelajaran: 'asc' }],
+      })
+      return NextResponse.json(result.map(r => r.mataPelajaran))
+    }
+
     const siswaId = searchParams.get('siswaId')
     const rombelId = searchParams.get('rombelId')
-    const limit = parseInt(searchParams.get('limit') || '0')
+    const mataPelajaran = searchParams.get('mataPelajaran')
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
 
     const where: Record<string, unknown> = {}
     if (siswaId) where.siswaId = siswaId
     if (rombelId) where.siswa = { rombelId }
+    if (mataPelajaran) where.mataPelajaran = mataPelajaran
 
-    const data = await db.nilai.findMany({
-      where,
-      include: { siswa: { include: { rombel: true } } },
-      orderBy: [{ mataPelajaran: 'asc' }],
-      ...(limit > 0 ? { take: limit } : {}),
-    })
-    return NextResponse.json(data)
+    const [data, total] = await Promise.all([
+      db.nilai.findMany({
+        where,
+        include: { siswa: { include: { rombel: true } } },
+        orderBy: [{ mataPelajaran: 'asc' }, { siswa: { nama: 'asc' } }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      db.nilai.count({ where }),
+    ])
+    return NextResponse.json({ data, total, page, limit })
   } catch (error) {
     console.error(error)
     return NextResponse.json({ error: 'Gagal memuat data' }, { status: 500 })

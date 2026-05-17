@@ -93,3 +93,35 @@ Stage Summary:
 - All components verified working - no TypeScript or ESLint errors
 - App properly renders with 23 rombels, 818 siswa, 1931 nilai records
 - Dev server stable and serving pages correctly
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix Nilai page only showing 1 mata pelajaran in filter dropdown
+
+Work Log:
+- Diagnosed root cause: `mataPelajaranList` was derived from paginated data (30 records max). Since API ordered by mataPelajaran ASC, only "Bahasa Indonesia" (36 records) filled the first 30, so only 1 mapel appeared in the dropdown
+- Modified `/api/nilai/route.ts` GET endpoint:
+  - Added `distinct=mataPelajaran` query parameter that returns all unique mata pelajaran names
+  - Added `mataPelajaran` filter parameter for server-side filtering
+  - Added proper server-side pagination with `page` and `limit` params
+  - Response now returns `{ data, total, page, limit }` instead of raw array
+- Updated `nilai-page.tsx`:
+  - Added `mataPelajaranList` as separate state (not derived from paginated data)
+  - Added `fetchMataPelajaran()` function that calls `?distinct=mataPelajaran` endpoint
+  - Fetched mata pelajaran list on component mount and when rombel filter changes
+  - Added `detailLoading` state for proper loading indicator
+  - Added `totalDetailPages` state for detail pagination
+  - Updated detail tab to use server-side pagination with page navigation
+  - Updated row numbering to account for pagination offset
+  - Added data count badge next to filter dropdowns
+- Verified API returns all 21 mata pelajaran correctly
+- Verified paginated API works with proper total count (707 records)
+- Lint check passes with no errors
+
+Stage Summary:
+- Root cause: paginated data (limit 30) only contained 1 mata pelajaran, so dropdown showed only that 1 option
+- Fix: fetch distinct mata pelajaran list separately via new API endpoint
+- All 21 mata pelajaran now show in the filter dropdown
+- Proper server-side pagination implemented for detail nilai tab
+- No breaking changes to existing functionality

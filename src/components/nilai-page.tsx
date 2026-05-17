@@ -42,7 +42,9 @@ const PAGE_SIZE = 30
 export function NilaiPage() {
   const [data, setData] = useState<Nilai[]>([])
   const [rombelList, setRombelList] = useState<Rombel[]>([])
+  const [mataPelajaranList, setMataPelajaranList] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [detailLoading, setDetailLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState({
@@ -54,9 +56,10 @@ export function NilaiPage() {
   const [siswaList, setSiswaList] = useState<Siswa[]>([])
   const [activeTab, setActiveTab] = useState('peringkat-kelas')
 
-  // Pagination for nilai
+  // Pagination for detail nilai
   const [page, setPage] = useState(1)
   const [totalNilai, setTotalNilai] = useState(0)
+  const [totalDetailPages, setTotalDetailPages] = useState(0)
 
   // Import state
   const [importOpen, setImportOpen] = useState(false)
@@ -80,20 +83,41 @@ export function NilaiPage() {
 
   const { toast } = useToast()
 
+  // Fetch mata pelajaran list separately
+  const fetchMataPelajaran = useCallback(async (rombelId?: string) => {
+    try {
+      const params = new URLSearchParams()
+      params.set('distinct', 'mataPelajaran')
+      if (rombelId) params.set('rombelId', rombelId)
+      const res = await fetch(`/api/nilai?${params}`)
+      const json = await res.json()
+      if (Array.isArray(json)) {
+        setMataPelajaranList(json)
+      }
+    } catch {
+      // silent fail
+    }
+  }, [])
+
   const fetchData = useCallback(async () => {
     try {
       const rombelRes = await fetch('/api/rombel')
       const rombelJson = await rombelRes.json()
       setRombelList(rombelJson)
 
-      // Don't fetch all nilai on initial load - too heavy
-      // Just load rombel list for dropdowns
+      // Fetch total nilai count
+      const countRes = await fetch('/api/nilai?limit=1')
+      const countJson = await countRes.json()
+      if (countJson.total) setTotalNilai(countJson.total)
+
+      // Fetch all mata pelajaran
+      fetchMataPelajaran()
     } catch {
       toast({ title: 'Gagal memuat data', variant: 'destructive' })
     } finally {
       setLoading(false)
     }
-  }, [toast])
+  }, [toast, fetchMataPelajaran])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -101,15 +125,20 @@ export function NilaiPage() {
   useEffect(() => {
     if (activeTab === 'detail') {
       const fetchDetail = async () => {
+        setDetailLoading(true)
         try {
           const params = new URLSearchParams()
           if (filterRombel !== 'all') params.set('rombelId', filterRombel)
+          if (filterMapel !== 'all') params.set('mataPelajaran', filterMapel)
+          params.set('page', String(page))
           params.set('limit', String(PAGE_SIZE))
 
           const nilaiRes = await fetch(`/api/nilai?${params}`)
           const nilaiJson = await nilaiRes.json()
-          if (Array.isArray(nilaiJson)) {
-            setData(nilaiJson)
+          if (nilaiJson.data && Array.isArray(nilaiJson.data)) {
+            setData(nilaiJson.data)
+            setTotalNilai(nilaiJson.total || 0)
+            setTotalDetailPages(Math.ceil((nilaiJson.total || 0) / PAGE_SIZE))
           }
 
           // Fetch siswa for the add form
@@ -120,13 +149,18 @@ export function NilaiPage() {
           } else {
             setSiswaList([])
           }
+
+          // Refresh mata pelajaran list for selected rombel
+          fetchMataPelajaran(filterRombel !== 'all' ? filterRombel : undefined)
         } catch {
           toast({ title: 'Gagal memuat data nilai', variant: 'destructive' })
+        } finally {
+          setDetailLoading(false)
         }
       }
       fetchDetail()
     }
-  }, [activeTab, filterRombel, toast])
+  }, [activeTab, filterRombel, filterMapel, page, toast, fetchMataPelajaran])
 
   // Fetch peringkat kelas
   const fetchPeringkatKelas = useCallback(async () => {
@@ -170,15 +204,10 @@ export function NilaiPage() {
 
   useEffect(() => { fetchPeringkatTingkat() }, [fetchPeringkatTingkat])
 
-  // Reset pages on filter change
+  // Reset page on filter change
   useEffect(() => { setPage(1); setPeringkatPage(1) }, [filterRombel, filterMapel])
 
-  const mataPelajaranList = [...new Set(data.map(n => n.mataPelajaran))].sort()
-
-  const filtered = data.filter(n => {
-    const matchMapel = filterMapel === 'all' || n.mataPelajaran === filterMapel
-    return matchMapel
-  })
+  const filtered = data
 
   const handleSubmit = async () => {
     try {
@@ -662,6 +691,11 @@ export function NilaiPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {totalNilai > 0 && (
+                    <Badge variant="outline" className="text-sm">
+                      {totalNilai} data
+                    </Badge>
+                  )}
                 </div>
                 <Dialog open={open} onOpenChange={setOpen}>
                   <Button onClick={handleAdd} size="sm">
@@ -707,6 +741,12 @@ export function NilaiPage() {
                 </Dialog>
               </div>
 
+              {detailLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+              <>
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -742,7 +782,7 @@ export function NilaiPage() {
                     ) : (
                       filtered.map((item, idx) => (
                         <TableRow key={item.id}>
-                          <TableCell>{idx + 1}</TableCell>
+                          <TableCell>{(page - 1) * PAGE_SIZE + idx + 1}</TableCell>
                           <TableCell className="font-medium text-sm">{item.siswa?.nama ?? '-'}</TableCell>
                           <TableCell><Badge variant="outline" className="text-xs">{item.siswa?.rombel?.nama ?? '-'}</Badge></TableCell>
                           <TableCell className="text-sm">{item.mataPelajaran}</TableCell>
@@ -786,6 +826,24 @@ export function NilaiPage() {
                   </TableBody>
                 </Table>
               </div>
+              {/* Detail Pagination */}
+              {totalDetailPages > 1 && (
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Halaman {page} dari {totalDetailPages} ({totalNilai} data)
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={page >= totalDetailPages} onClick={() => setPage(p => Math.min(totalDetailPages, p + 1))}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              </>
+              )}
             </TabsContent>
           </CardContent>
         </Tabs>
