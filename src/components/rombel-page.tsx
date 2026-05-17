@@ -23,7 +23,7 @@ interface Rombel {
   _count?: { siswa: number }
 }
 
-const emptyForm = { nama: '', kelas: '10', jurusan: 'IPA', tahunAjaran: '2024/2025', waliKelas: '' }
+const emptyForm = { nama: '', kelas: '10', jurusan: 'Umum', tahunAjaran: '2024/2025', waliKelas: '' }
 
 export function RombelPage() {
   const [data, setData] = useState<Rombel[]>([])
@@ -146,6 +146,7 @@ export function RombelPage() {
                   <Select value={form.jurusan} onValueChange={v => setForm(f => ({ ...f, jurusan: v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="Umum">Umum</SelectItem>
                       <SelectItem value="IPA">IPA</SelectItem>
                       <SelectItem value="IPS">IPS</SelectItem>
                       <SelectItem value="Bahasa">Bahasa</SelectItem>
