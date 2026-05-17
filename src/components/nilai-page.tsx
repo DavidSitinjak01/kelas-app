@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   Plus, Pencil, Trash2, Upload, FileSpreadsheet, Loader2,
   CheckCircle, AlertCircle, Trophy, Medal, BarChart3, ChevronLeft, ChevronRight,
+  XCircle,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -83,6 +84,9 @@ export function NilaiPage() {
   const [tingkatSummary, setTingkatSummary] = useState<{ kelas: number; rombelCount: number; siswaCount: number; nilaiCount: number; rombels: { id: string; nama: string; siswaCount: number; nilaiCount: number }[] }[]>([])
   const [rombelNilaiInfo, setRombelNilaiInfo] = useState<Map<string, number>>(new Map())
 
+  // Eligible status map (siswaId -> status)
+  const [eligibleMap, setEligibleMap] = useState<Map<string, string>>(new Map())
+
   const { toast } = useToast()
 
   // Fetch mata pelajaran list separately
@@ -150,7 +154,7 @@ export function NilaiPage() {
     }
   }, [toast, fetchMataPelajaran])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { fetchData(); fetchEligibleStatus() }, [fetchData, fetchEligibleStatus])
 
   // Fetch detail nilai when switching to detail tab
   useEffect(() => {
@@ -192,6 +196,69 @@ export function NilaiPage() {
       fetchDetail()
     }
   }, [activeTab, filterRombel, filterMapel, page, toast, fetchMataPelajaran])
+
+  // Fetch eligible status for kelas 12 students
+  const fetchEligibleStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/eligible')
+      const json = await res.json()
+      const map = new Map<string, string>()
+      for (const e of json) {
+        map.set(e.siswaId, e.status)
+      }
+      setEligibleMap(map)
+    } catch {
+      // silent
+    }
+  }, [])
+
+  // Handle eligible status change from peringkat tingkat
+  const handleEligibleChange = async (siswaId: string, status: string) => {
+    try {
+      // Find the siswa to get keterangan
+      const siswa = peringkatTingkat.find(s => s.siswaId === siswaId)
+      let keterangan = ''
+      if (status === 'eligible' && siswa) {
+        keterangan = `Top 20% - Peringkat ${siswa.peringkat} dari ${peringkatTingkat.length} (Rata-rata: ${siswa.rataRata.toFixed(1)})`
+      } else if (status === 'bersyarat' && siswa) {
+        keterangan = `Peringkat ${siswa.peringkat} dari ${peringkatTingkat.length} - Rata-rata: ${siswa.rataRata.toFixed(1)}`
+      } else if (status === 'tidak' && siswa) {
+        keterangan = `Peringkat ${siswa.peringkat} dari ${peringkatTingkat.length} - Rata-rata: ${siswa.rataRata.toFixed(1)}`
+      }
+
+      if (status === '-') {
+        // Delete eligible record
+        const res = await fetch('/api/eligible', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ siswaId }),
+        })
+        if (!res.ok) throw new Error()
+      } else {
+        const res = await fetch('/api/eligible', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ siswaId, status, keterangan }),
+        })
+        if (!res.ok) throw new Error()
+      }
+
+      // Update local state
+      setEligibleMap(prev => {
+        const next = new Map(prev)
+        if (status === '-') {
+          next.delete(siswaId)
+        } else {
+          next.set(siswaId, status)
+        }
+        return next
+      })
+
+      toast({ title: status === '-' ? 'Status eligible dihapus' : `Status diubah ke ${status}` })
+    } catch {
+      toast({ title: 'Gagal mengubah status', variant: 'destructive' })
+    }
+  }
 
   // Fetch peringkat kelas
   const fetchPeringkatKelas = useCallback(async () => {
@@ -622,6 +689,55 @@ export function NilaiPage() {
                 )}
               </div>
 
+              {/* Eligible summary for kelas XII */}
+              {peringkatTingkatKelas === '12' && peringkatTingkat.length > 0 && (() => {
+                const total = peringkatTingkat.length
+                const top20 = Math.max(Math.floor(total * 0.2), 1)
+                const eligibleSiswaCount = peringkatTingkat.filter(s => eligibleMap.get(s.siswaId) === 'eligible').length
+                const bersyaratCount = peringkatTingkat.filter(s => eligibleMap.get(s.siswaId) === 'bersyarat').length
+                const tidakCount = peringkatTingkat.filter(s => eligibleMap.get(s.siswaId) === 'tidak').length
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <Card className="border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/10">
+                      <CardContent className="p-3 flex items-center gap-2">
+                        <Trophy className="h-5 w-5 text-emerald-600 shrink-0" />
+                        <div>
+                          <p className="text-xl font-bold text-emerald-700">{eligibleSiswaCount}<span className="text-sm font-normal text-muted-foreground">/{top20}</span></p>
+                          <p className="text-[11px] text-muted-foreground">Eligible (20% dari {total})</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/10">
+                      <CardContent className="p-3 flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-amber-500 shrink-0" />
+                        <div>
+                          <p className="text-xl font-bold text-amber-700">{bersyaratCount}</p>
+                          <p className="text-[11px] text-muted-foreground">Bersyarat</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/10">
+                      <CardContent className="p-3 flex items-center gap-2">
+                        <XCircle className="h-5 w-5 text-red-500 shrink-0" />
+                        <div>
+                          <p className="text-xl font-bold text-red-700">{tidakCount}</p>
+                          <p className="text-[11px] text-muted-foreground">Tidak Eligible</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-3 flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <div>
+                          <p className="text-xl font-bold">{total}</p>
+                          <p className="text-[11px] text-muted-foreground">Total Siswa XII</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )
+              })()}
+
               {/* Rombel Summary */}
               {rombelSummary.length > 0 && (
                 <div className="flex flex-wrap gap-2">
@@ -683,23 +799,45 @@ export function NilaiPage() {
                           <TableHead>Rombel</TableHead>
                           <TableHead className="text-center">Mapel</TableHead>
                           <TableHead className="text-right">Rata-rata</TableHead>
+                          {peringkatTingkatKelas === '12' && (
+                            <TableHead className="w-40 text-center">Status Eligible</TableHead>
+                          )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {paginatedPeringkatTingkat.map(s => (
-                          <TableRow key={s.siswaId} className={s.peringkat <= 3 ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : ''}>
-                            <TableCell className="text-center">{peringkatBadge(s.peringkat)}</TableCell>
-                            <TableCell className="font-mono text-sm">{s.nis}</TableCell>
-                            <TableCell className="font-medium">{s.nama}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs">{s.rombelNama}</Badge>
-                            </TableCell>
-                            <TableCell className="text-center">{s.subjectCount}</TableCell>
-                            <TableCell className={`text-right font-semibold ${nilaiColor(s.rataRata)}`}>
-                              {s.rataRata.toFixed(2)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {paginatedPeringkatTingkat.map(s => {
+                          const currentStatus = eligibleMap.get(s.siswaId) || '-'
+                          const top20 = Math.max(Math.floor(peringkatTingkat.length * 0.2), 1)
+                          return (
+                            <TableRow key={s.siswaId} className={currentStatus === 'eligible' ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : s.peringkat <= 3 ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : ''}>
+                              <TableCell className="text-center">{peringkatBadge(s.peringkat)}</TableCell>
+                              <TableCell className="font-mono text-sm">{s.nis}</TableCell>
+                              <TableCell className="font-medium">{s.nama}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs">{s.rombelNama}</Badge>
+                              </TableCell>
+                              <TableCell className="text-center">{s.subjectCount}</TableCell>
+                              <TableCell className={`text-right font-semibold ${nilaiColor(s.rataRata)}`}>
+                                {s.rataRata.toFixed(2)}
+                              </TableCell>
+                              {peringkatTingkatKelas === '12' && (
+                                <TableCell className="text-center">
+                                  <Select value={currentStatus} onValueChange={(v) => handleEligibleChange(s.siswaId, v)}>
+                                    <SelectTrigger className={`h-8 w-32 text-xs ${currentStatus === 'eligible' ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' : currentStatus === 'bersyarat' ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/30' : currentStatus === 'tidak' ? 'border-red-400 bg-red-50 dark:bg-red-950/30' : ''}`}>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="-">—</SelectItem>
+                                      <SelectItem value="eligible">✅ Eligible</SelectItem>
+                                      <SelectItem value="bersyarat">⚠️ Bersyarat</SelectItem>
+                                      <SelectItem value="tidak">❌ Tidak</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          )
+                        })}
                       </TableBody>
                     </Table>
                   </div>

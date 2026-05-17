@@ -36,3 +36,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Gagal menyimpan eligible' }, { status: 500 })
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const body = await request.json()
+    if (body.siswaId) {
+      await db.eligible.deleteMany({ where: { siswaId: body.siswaId } })
+    } else if (body.id) {
+      await db.eligible.delete({ where: { id: body.id } })
+    }
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error(error)
+    return NextResponse.json({ error: 'Gagal menghapus eligible' }, { status: 500 })
+  }
+}
