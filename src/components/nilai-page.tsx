@@ -68,7 +68,7 @@ export function NilaiPage() {
     success: boolean; totalSiswaProcessed: number; totalNilaiCreated: number
     totalNilaiSkipped: number; subjects: string[]; errors: string[]
   } | null>(null)
-  const [clearExisting, setClearExisting] = useState(true)
+  const [clearExisting, setClearExisting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
 
@@ -958,7 +958,7 @@ export function NilaiPage() {
               </div>
             )}
 
-            {/* Clear existing option */}
+            {/* Clear existing option - scoped to imported siswa only */}
             <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
               <Checkbox
                 id="clear-existing-nilai"
@@ -968,10 +968,10 @@ export function NilaiPage() {
               />
               <div className="flex-1">
                 <Label htmlFor="clear-existing-nilai" className="text-sm font-medium cursor-pointer">
-                  Hapus semua nilai sebelumnya sebelum import
+                  Ganti nilai lama siswa yang diimport
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Semua data nilai yang ada akan dihapus terlebih dahulu (data siswa dan rombel tetap)
+                  Hapus nilai lama siswa yang ada di file import, lalu ganti dengan data baru (nilai kelas lain tetap aman)
                 </p>
               </div>
             </div>

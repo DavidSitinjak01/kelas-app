@@ -16,16 +16,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'filePaths diperlukan' }, { status: 400 })
     }
 
-    // Clear existing nilai data if requested
-    if (clearExisting) {
-      await db.nilai.deleteMany({})
-    }
-
     let totalSiswaProcessed = 0
     let totalNilaiCreated = 0
     let totalNilaiSkipped = 0
     const errors: string[] = []
     const subjectSet = new Set<string>()
+
+    // Phase 1: Parse all Excel files and collect siswa IDs
+    // We need to know all siswa IDs first so we can scope the delete properly
+    const siswaIdsToReplace: string[] = []
+    const parsedRows: {
+      siswaId: string
+      nama: string
+      subject: string
+      smt1: number; smt2: number; smt3: number; smt4: number; smt5: number; smt6: number
+      rerata: number
+    }[] = []
 
     for (const filePath of filePaths) {
       const fullPath = path.join(process.cwd(), 'upload', filePath)
@@ -46,11 +52,6 @@ export async function POST(request: Request) {
       }
 
       // Parse subject names from row 4 (index 4)
-      // Row 0: Title, Row 1: School info, Row 2: Class name
-      // Row 3: NO, NAMA SISWA, NISN, NIS, MATA PELAJARAN
-      // Row 4: Subject names (each subject spans 7 cols: Smt1-6 + rerata)
-      // Row 5: Empty, Row 6: Smt1-Smt6 + rerata sub-headers
-      // Row 7+: Data rows
       const subjects: { name: string; startCol: number }[] = []
       let col = 4
       while (col < (rawData[4]?.length || 0)) {
@@ -96,6 +97,9 @@ export async function POST(request: Request) {
           continue
         }
 
+        // Track siswa ID for scoped deletion
+        siswaIdsToReplace.push(siswaId)
+
         for (const subject of subjects) {
           const sc = subject.startCol
           const smt1 = parseNum(row[sc])
@@ -115,44 +119,74 @@ export async function POST(request: Request) {
           const vals = [smt1, smt2, smt3, smt4, smt5, smt6].filter(v => v > 0)
           const calcRerata = rerata > 0 ? rerata : (vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0)
 
-          try {
-            await db.nilai.upsert({
-              where: {
-                siswaId_mataPelajaran: {
-                  siswaId,
-                  mataPelajaran: subject.name,
-                },
-              },
-              create: {
-                siswaId,
-                mataPelajaran: subject.name,
-                smt1,
-                smt2,
-                smt3,
-                smt4,
-                smt5,
-                smt6,
-                rerata: Math.round(calcRerata * 100) / 100,
-              },
-              update: {
-                smt1,
-                smt2,
-                smt3,
-                smt4,
-                smt5,
-                smt6,
-                rerata: Math.round(calcRerata * 100) / 100,
-              },
-            })
-            totalNilaiCreated++
-          } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : 'Unknown error'
-            errors.push(`Gagal simpan nilai ${nama} - ${subject.name}: ${msg}`)
-            totalNilaiSkipped++
-          }
+          parsedRows.push({
+            siswaId,
+            nama,
+            subject: subject.name,
+            smt1,
+            smt2,
+            smt3,
+            smt4,
+            smt5,
+            smt6,
+            rerata: Math.round(calcRerata * 100) / 100,
+          })
         }
 
         totalSiswaProcessed++
+      }
+    }
+
+    // Phase 2: If clearExisting, only delete nilai for the siswa being imported
+    // This prevents other classes' grades from being wiped out
+    if (clearExisting && siswaIdsToReplace.length > 0) {
+      // Delete in batches to avoid SQLite variable limit
+      const batchSize = 500
+      const uniqueSiswaIds = [...new Set(siswaIdsToReplace)]
+      for (let i = 0; i < uniqueSiswaIds.length; i += batchSize) {
+        const batch = uniqueSiswaIds.slice(i, i + batchSize)
+        await db.nilai.deleteMany({
+          where: { siswaId: { in: batch } },
+        })
+      }
+    }
+
+    // Phase 3: Upsert all parsed nilai data
+    for (const row of parsedRows) {
+      try {
+        await db.nilai.upsert({
+          where: {
+            siswaId_mataPelajaran: {
+              siswaId: row.siswaId,
+              mataPelajaran: row.subject,
+            },
+          },
+          create: {
+            siswaId: row.siswaId,
+            mataPelajaran: row.subject,
+            smt1: row.smt1,
+            smt2: row.smt2,
+            smt3: row.smt3,
+            smt4: row.smt4,
+            smt5: row.smt5,
+            smt6: row.smt6,
+            rerata: row.rerata,
+          },
+          update: {
+            smt1: row.smt1,
+            smt2: row.smt2,
+            smt3: row.smt3,
+            smt4: row.smt4,
+            smt5: row.smt5,
+            smt6: row.smt6,
+            rerata: row.rerata,
+          },
+        })
+        totalNilaiCreated++
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Unknown error'
+        errors.push(`Gagal simpan nilai ${row.nama} - ${row.subject}: ${msg}`)
+        totalNilaiSkipped++
       }
     }
 
