@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const rombelId = searchParams.get('rombelId')
+    const includeCoverage = searchParams.get('coverage') === 'true'
 
     const where: Record<string, unknown> = {}
     if (rombelId) {
@@ -27,6 +28,33 @@ export async function GET(request: Request) {
         },
       },
     })
+
+    // If coverage requested, also return per-rombel stats for XII
+    if (includeCoverage) {
+      const xiiRombels = await db.rombel.findMany({
+        where: { kelas: 12 },
+        include: {
+          siswa: {
+            select: { id: true }
+          }
+        }
+      })
+
+      const tkaSiswaIds = new Set(tkaRecords.map(t => t.siswaId))
+
+      const coverage = xiiRombels.map(r => ({
+        rombelId: r.id,
+        rombelNama: r.nama,
+        totalSiswa: r.siswa.length,
+        tkaCount: r.siswa.filter(s => tkaSiswaIds.has(s.id)).length,
+        missingCount: r.siswa.filter(s => !tkaSiswaIds.has(s.id)).length,
+      }))
+
+      return NextResponse.json({
+        data: tkaRecords,
+        coverage,
+      })
+    }
 
     return NextResponse.json(tkaRecords)
   } catch (error) {

@@ -2,6 +2,15 @@ import { NextResponse } from 'next/server'
 import { writeFile } from 'fs/promises'
 import path from 'path'
 
+// Allow up to 10MB per file upload
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData()
@@ -16,8 +25,16 @@ export async function POST(request: Request) {
 
     // Save to upload directory
     const uploadDir = path.join(process.cwd(), 'upload')
-    const filePath = file.name
+    // Sanitize filename - replace problematic characters
+    const safeName = file.name.replace(/[^a-zA-Z0-9._\-\s]/g, '_')
+    const filePath = safeName
     const fullPath = path.join(uploadDir, filePath)
+
+    // Ensure upload directory exists
+    const fsSync = await import('fs')
+    if (!fsSync.existsSync(uploadDir)) {
+      await import('fs/promises').then(fsp => fsp.mkdir(uploadDir, { recursive: true }))
+    }
 
     await writeFile(fullPath, buffer)
 

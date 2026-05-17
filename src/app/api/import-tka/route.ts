@@ -167,13 +167,16 @@ export async function POST(request: Request) {
 
     let totalProcessed = 0
     let totalCreated = 0
+    let totalUpdated = 0
     let totalSkipped = 0
     const errors: string[] = []
+    const details: { fileName: string; siswaNama: string; rombel: string; status: string }[] = []
 
     for (const filePath of filePaths) {
       const fullPath = path.join(process.cwd(), 'upload', filePath)
       if (!fs.existsSync(fullPath)) {
         errors.push(`File tidak ditemukan: ${filePath}`)
+        totalSkipped++
         continue
       }
 
@@ -191,29 +194,49 @@ export async function POST(request: Request) {
 
         const parsed = extractTKAFromText(textOutput)
         if (!parsed) {
-          errors.push(`Gagal memparse TKA dari file: ${filePath}`)
+          errors.push(`Gagal memparse TKA dari file: ${filePath} - Pastikan file PDF adalah Sertifikat Hasil TKA (SHTKA) yang valid`)
           totalSkipped++
           continue
         }
 
-        // Find siswa by NISN
+        // Find siswa by NISN (trim whitespace and normalize)
+        const cleanNisn = parsed.nisn.trim()
         const siswa = await db.siswa.findFirst({
-          where: { nisn: parsed.nisn },
+          where: { nisn: cleanNisn },
           include: { rombel: true },
         })
 
         if (!siswa) {
-          errors.push(`Siswa tidak ditemukan: ${parsed.nama} (NISN: ${parsed.nisn})`)
+          // Try to find by name as fallback (case insensitive)
+          const namaParts = parsed.nama.toLowerCase().split(' ').filter(Boolean)
+          const fallbackSiswa = await db.siswa.findFirst({
+            where: {
+              nama: { contains: parsed.nama, mode: 'insensitive' },
+              rombel: { kelas: 12 },
+            },
+            include: { rombel: true },
+          })
+
+          if (fallbackSiswa) {
+            errors.push(`NISN ${cleanNisn} tidak cocok, tapi nama "${parsed.nama}" ditemukan: ${fallbackSiswa.nisn} - ${fallbackSiswa.nama} (${fallbackSiswa.rombel.nama}). NISN di database mungkin berbeda dengan di PDF.`)
+          } else {
+            errors.push(`Siswa tidak ditemukan: ${parsed.nama} (NISN: ${cleanNisn}) - Pastikan NISN siswa sudah terdaftar di Data Siswa`)
+          }
           totalSkipped++
           continue
         }
 
         // Verify siswa is kelas 12
         if (siswa.rombel.kelas !== 12) {
-          errors.push(`Siswa ${parsed.nama} bukan kelas 12 (kelas: ${siswa.rombel.kelas})`)
+          errors.push(`Siswa ${parsed.nama} bukan kelas 12 (kelas: ${siswa.rombel.kelas}, rombel: ${siswa.rombel.nama})`)
           totalSkipped++
           continue
         }
+
+        // Check if TKA record already exists for this student
+        const existingTka = await db.tKA.findUnique({
+          where: { siswaId: siswa.id },
+        })
 
         // Upsert TKA record
         await db.tKA.upsert({
@@ -255,8 +278,19 @@ export async function POST(request: Request) {
           },
         })
 
-        totalCreated++
+        if (existingTka) {
+          totalUpdated++
+        } else {
+          totalCreated++
+        }
         totalProcessed++
+
+        details.push({
+          fileName: filePath,
+          siswaNama: siswa.nama,
+          rombel: siswa.rombel.nama,
+          status: existingTka ? 'updated' : 'created',
+        })
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Unknown error'
         errors.push(`Error processing ${filePath}: ${msg}`)
@@ -268,8 +302,10 @@ export async function POST(request: Request) {
       success: true,
       totalProcessed,
       totalCreated,
+      totalUpdated,
       totalSkipped,
       errors: errors.slice(0, 50),
+      details,
     })
   } catch (error) {
     console.error('Import TKA error:', error)

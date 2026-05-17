@@ -107,10 +107,11 @@ export function NilaiPage() {
   const [tkaImportOpen, setTkaImportOpen] = useState(false)
   const [tkaImporting, setTkaImporting] = useState(false)
   const [tkaImportResult, setTkaImportResult] = useState<{
-    success: boolean; totalProcessed: number; totalCreated: number; totalSkipped: number; errors: string[]
+    success: boolean; totalProcessed: number; totalCreated: number; totalUpdated: number; totalSkipped: number; errors: string[]; details?: { fileName: string; siswaNama: string; rombel: string; status: string }[]
   } | null>(null)
   const [tkaSelectedFiles, setTkaSelectedFiles] = useState<File[]>([])
   const [tkaFilterRombel, setTkaFilterRombel] = useState('all')
+  const [tkaCoverage, setTkaCoverage] = useState<{ rombelId: string; rombelNama: string; totalSiswa: number; tkaCount: number; missingCount: number }[]>([])
 
   const { toast } = useToast()
 
@@ -202,10 +203,16 @@ export function NilaiPage() {
     try {
       const params = new URLSearchParams()
       if (tkaFilterRombel !== 'all') params.set('rombelId', tkaFilterRombel)
+      params.set('coverage', 'true')
       const res = await fetch(`/api/tka?${params}`)
       const json = await res.json()
-      if (Array.isArray(json)) {
+      if (json.data && Array.isArray(json.data)) {
+        setTkaData(json.data)
+      } else if (Array.isArray(json)) {
         setTkaData(json)
+      }
+      if (json.coverage && Array.isArray(json.coverage)) {
+        setTkaCoverage(json.coverage)
       }
     } catch {
       // silent
@@ -1005,6 +1012,37 @@ export function NilaiPage() {
                 )}
               </div>
 
+              {/* TKA Coverage per Rombel - show which classes have/missing data */}
+              {tkaCoverage.length > 0 && (() => {
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {tkaCoverage.sort((a, b) => a.rombelNama.localeCompare(b.rombelNama)).map(r => {
+                      const isComplete = r.tkaCount > 0 && r.missingCount === 0
+                      const isPartial = r.tkaCount > 0 && r.missingCount > 0
+                      const isEmpty = r.tkaCount === 0
+                      const isSelected = tkaFilterRombel === r.rombelId
+                      return (
+                        <Card
+                          key={r.rombelId}
+                          className={`cursor-pointer transition-all ${isComplete ? 'border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/10' : isPartial ? 'border-amber-200 bg-amber-50/50 dark:bg-amber-950/10' : 'border-red-200 bg-red-50/50 dark:bg-red-950/10'} ${isSelected ? 'ring-2 ring-primary' : ''}`}
+                          onClick={() => setTkaFilterRombel(r.rombelId)}
+                        >
+                          <CardContent className="p-3 text-center">
+                            <p className="text-xs font-medium">{r.rombelNama}</p>
+                            <p className={`text-lg font-bold ${isComplete ? 'text-emerald-600' : isPartial ? 'text-amber-600' : 'text-red-600'}`}>
+                              {r.tkaCount}<span className="text-sm font-normal text-muted-foreground">/{r.totalSiswa}</span>
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {isComplete ? 'Lengkap' : isPartial ? `${r.missingCount} belum ada` : 'Belum ada TKA'}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
+
               {/* TKA Summary Stats */}
               {tkaData.length > 0 && (() => {
                 const avgBindo = tkaData.reduce((s, t) => s + t.bindoNilai, 0) / tkaData.length
@@ -1041,7 +1079,7 @@ export function NilaiPage() {
               ) : tkaData.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p>Belum ada data TKA untuk kelas 12</p>
+                  <p>Belum ada data TKA untuk rombel ini</p>
                   <p className="text-xs mt-1">Import Sertifikat TKA (PDF) untuk menampilkan data</p>
                   <Button variant="outline" size="sm" className="mt-2" onClick={() => { setTkaSelectedFiles([]); setTkaImportResult(null); setTkaImportOpen(true) }}>
                     <FileText className="h-4 w-4 mr-1" /> Import TKA
@@ -1526,28 +1564,34 @@ export function NilaiPage() {
                   <CheckCircle className="h-5 w-5" />
                   <span className="font-medium">Import Selesai</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Card className="border-emerald-200">
-                    <CardContent className="p-3 text-center">
-                      <p className="text-2xl font-bold text-emerald-600">{tkaImportResult.totalProcessed}</p>
-                      <p className="text-xs text-muted-foreground">Siswa Diproses</p>
-                    </CardContent>
-                  </Card>
+                <div className="grid grid-cols-3 gap-3">
                   <Card className="border-emerald-200">
                     <CardContent className="p-3 text-center">
                       <p className="text-2xl font-bold text-emerald-600">{tkaImportResult.totalCreated}</p>
-                      <p className="text-xs text-muted-foreground">Data TKA Tersimpan</p>
+                      <p className="text-xs text-muted-foreground">Data Baru</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-teal-200">
+                    <CardContent className="p-3 text-center">
+                      <p className="text-2xl font-bold text-teal-600">{tkaImportResult.totalUpdated || 0}</p>
+                      <p className="text-xs text-muted-foreground">Diperbarui</p>
+                    </CardContent>
+                  </Card>
+                  <Card className={tkaImportResult.totalSkipped > 0 ? 'border-amber-200' : 'border-emerald-200'}>
+                    <CardContent className="p-3 text-center">
+                      <p className={`text-2xl font-bold ${tkaImportResult.totalSkipped > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{tkaImportResult.totalSkipped}</p>
+                      <p className="text-xs text-muted-foreground">Dilewati</p>
                     </CardContent>
                   </Card>
                 </div>
                 {tkaImportResult.totalSkipped > 0 && (
                   <div className="flex items-center gap-2 text-amber-600 text-sm">
                     <AlertCircle className="h-4 w-4" />
-                    <span>{tkaImportResult.totalSkipped} file dilewati</span>
+                    <span>{tkaImportResult.totalSkipped} file dilewati - lihat detail error di bawah</span>
                   </div>
                 )}
                 {tkaImportResult.errors.length > 0 && (
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                  <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
                     <p className="text-xs font-medium text-red-600">Error:</p>
                     {tkaImportResult.errors.map((err, i) => (
                       <p key={i} className="text-xs text-red-500">{err}</p>
