@@ -26,6 +26,70 @@ interface ParsedTKA {
   pilihan2Kategori: string
 }
 
+/**
+ * Normalize NISN: strip whitespace, remove leading zeros, keep digits only.
+ * This handles cases like "0075541612" vs "75541612" or spaces/padding.
+ */
+function normalizeNisn(nisn: string): string {
+  return nisn.trim().replace(/^0+/, '').replace(/\s/g, '')
+}
+
+/**
+ * Levenshtein distance between two strings.
+ */
+function levenshtein(a: string, b: string): number {
+  const m = a.length
+  const n = b.length
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0))
+  for (let i = 0; i <= m; i++) dp[i][0] = i
+  for (let j = 0; j <= n; j++) dp[0][j] = j
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+    }
+  }
+  return dp[m][n]
+}
+
+/**
+ * Token-based similarity: compare sets of words in two names.
+ * Returns a score between 0 and 1, where 1 means all tokens match.
+ */
+function tokenSimilarity(a: string, b: string): number {
+  const tokensA = new Set(a.toLowerCase().split(/\s+/).filter(Boolean))
+  const tokensB = new Set(b.toLowerCase().split(/\s+/).filter(Boolean))
+  if (tokensA.size === 0 && tokensB.size === 0) return 1
+  if (tokensA.size === 0 || tokensB.size === 0) return 0
+  let common = 0
+  for (const t of Array.from(tokensA)) {
+    if (tokensB.has(t)) common++
+  }
+  // Jaccard-like: common tokens / unique tokens
+  const union = new Set(Array.from(tokensA).concat(Array.from(tokensB))).size
+  return common / union
+}
+
+/**
+ * Combined fuzzy name match: returns a score 0-1 combining Levenshtein and token similarity.
+ */
+function fuzzyNameMatch(a: string, b: string): number {
+  const aNorm = a.toLowerCase().trim()
+  const bNorm = b.toLowerCase().trim()
+  if (aNorm === bNorm) return 1
+
+  // Levenshtein similarity
+  const maxLen = Math.max(aNorm.length, bNorm.length)
+  const levSim = maxLen > 0 ? 1 - levenshtein(aNorm, bNorm) / maxLen : 0
+
+  // Token similarity
+  const tokSim = tokenSimilarity(a, b)
+
+  // Weight: 40% Levenshtein, 60% token (token is more reliable for name matching)
+  return 0.4 * levSim + 0.6 * tokSim
+}
+
 function parseNum(val: string): number {
   const n = parseFloat(val)
   return isNaN(n) ? 0 : n
@@ -199,28 +263,58 @@ export async function POST(request: Request) {
           continue
         }
 
-        // Find siswa by NISN (trim whitespace and normalize)
+        // Find siswa by NISN with robust matching
         const cleanNisn = parsed.nisn.trim()
-        const siswa = await db.siswa.findFirst({
+        const normalizedNisn = normalizeNisn(cleanNisn)
+
+        // Step 1: Exact NISN match
+        let siswa = await db.siswa.findFirst({
           where: { nisn: cleanNisn },
           include: { rombel: true },
         })
 
+        // Step 2: Try normalized NISN (strip leading zeros) if exact match fails
+        if (!siswa && normalizedNisn !== cleanNisn) {
+          // Find all kelas 12 students and match by normalized NISN
+          const kelas12Siswa = await db.siswa.findMany({
+            where: { rombel: { kelas: 12 } },
+            include: { rombel: true },
+          })
+          siswa = kelas12Siswa.find(s => normalizeNisn(s.nisn) === normalizedNisn) || null
+        }
+
+        // Step 3: Try NIS (not NISN) as fallback — sometimes PDF has NIS listed as NISN
+        if (!siswa && cleanNisn) {
+          siswa = await db.siswa.findFirst({
+            where: { nis: cleanNisn },
+            include: { rombel: true },
+          })
+        }
+
+        // Step 4: Fuzzy name matching as last resort
         if (!siswa) {
-          // Try to find by name as fallback (case insensitive)
-          const namaParts = parsed.nama.toLowerCase().split(' ').filter(Boolean)
-          const fallbackSiswa = await db.siswa.findFirst({
-            where: {
-              nama: { contains: parsed.nama, mode: 'insensitive' },
-              rombel: { kelas: 12 },
-            },
+          const kelas12Siswa = await db.siswa.findMany({
+            where: { rombel: { kelas: 12 } },
             include: { rombel: true },
           })
 
-          if (fallbackSiswa) {
-            errors.push(`NISN ${cleanNisn} tidak cocok, tapi nama "${parsed.nama}" ditemukan: ${fallbackSiswa.nisn} - ${fallbackSiswa.nama} (${fallbackSiswa.rombel.nama}). NISN di database mungkin berbeda dengan di PDF.`)
+          // Find best fuzzy name match
+          let bestMatch: typeof kelas12Siswa[0] | null = null
+          let bestScore = 0
+          const FUZZY_THRESHOLD = 0.65
+
+          for (const s of kelas12Siswa) {
+            const score = fuzzyNameMatch(parsed.nama, s.nama)
+            if (score > bestScore && score >= FUZZY_THRESHOLD) {
+              bestScore = score
+              bestMatch = s
+            }
+          }
+
+          if (bestMatch) {
+            errors.push(`NISN ${cleanNisn} tidak cocok. Nama "${parsed.nama}" mirip dengan "${bestMatch.nama}" (NISN: ${bestMatch.nisn}, Rombel: ${bestMatch.rombel.nama}, skor kecocokan: ${(bestScore * 100).toFixed(0)}%). Namun, kecocokan nama tidak cukup untuk import otomatis - mohon perbaiki NISN di Data Siswa atau gunakan Import Excel/CSV.`)
           } else {
-            errors.push(`Siswa tidak ditemukan: ${parsed.nama} (NISN: ${cleanNisn}) - Pastikan NISN siswa sudah terdaftar di Data Siswa`)
+            errors.push(`Siswa tidak ditemukan: "${parsed.nama}" (NISN: ${cleanNisn}) - Pastikan NISN siswa sudah terdaftar di Data Siswa. Tip: Coba Import Excel/CSV jika NISN berbeda.`)
           }
           totalSkipped++
           continue
