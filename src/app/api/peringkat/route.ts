@@ -8,6 +8,69 @@ export async function GET(request: Request) {
     const rombelId = searchParams.get('rombelId')
     const tingkat = searchParams.get('tingkat')
 
+    // Summary: which tingkat levels and rombels have nilai data
+    if (type === 'summary') {
+      const rombels = await db.rombel.findMany({ orderBy: [{ kelas: 'asc' }, { nama: 'asc' }] })
+      const allRombelIds = rombels.map(r => r.id)
+
+      // Get siswa counts per rombel
+      const siswaCounts = await db.siswa.groupBy({
+        by: ['rombelId'],
+        where: { rombelId: { in: allRombelIds } },
+        _count: { id: true },
+      })
+      const siswaCountMap = new Map(siswaCounts.map(s => [s.rombelId, s._count.id]))
+
+      // Get nilai counts per rombel (via siswa)
+      const nilaiPerSiswa = await db.nilai.findMany({
+        select: { siswaId: true },
+      })
+      // Get rombelId for each siswa that has nilai
+      const siswaIdsWithNilai = [...new Set(nilaiPerSiswa.map(n => n.siswaId))]
+      const siswaWithNilai = await db.siswa.findMany({
+        where: { id: { in: siswaIdsWithNilai } },
+        select: { id: true, rombelId: true },
+      })
+      const siswaRombelMap = new Map(siswaWithNilai.map(s => [s.id, s.rombelId]))
+
+      // Count nilai per rombel
+      const nilaiPerRombel = new Map<string, number>()
+      for (const n of nilaiPerSiswa) {
+        const rId = siswaRombelMap.get(n.siswaId)
+        if (rId) {
+          nilaiPerRombel.set(rId, (nilaiPerRombel.get(rId) || 0) + 1)
+        }
+      }
+
+      // Build tingkat summary
+      const tingkatMap = new Map<number, { rombelCount: number; siswaCount: number; nilaiCount: number; rombels: { id: string; nama: string; siswaCount: number; nilaiCount: number }[] }>()
+      for (const r of rombels) {
+        if (!tingkatMap.has(r.kelas)) {
+          tingkatMap.set(r.kelas, { rombelCount: 0, siswaCount: 0, nilaiCount: 0, rombels: [] })
+        }
+        const t = tingkatMap.get(r.kelas)!
+        const sCount = siswaCountMap.get(r.id) || 0
+        const nCount = nilaiPerRombel.get(r.id) || 0
+        t.rombelCount++
+        t.siswaCount += sCount
+        t.nilaiCount += nCount
+        t.rombels.push({ id: r.id, nama: r.nama, siswaCount: sCount, nilaiCount: nCount })
+      }
+
+      const tingkatSummary = Array.from(tingkatMap.entries()).map(([kelas, data]) => ({
+        kelas,
+        ...data,
+      }))
+
+      // Find first tingkat with data
+      const firstWithNilai = tingkatSummary.find(t => t.nilaiCount > 0)
+
+      return NextResponse.json({
+        tingkatSummary,
+        firstTingkatWithNilai: firstWithNilai?.kelas || null,
+      })
+    }
+
     if (type === 'kelas' && rombelId) {
       // Get rombel info
       const rombel = await db.rombel.findUnique({ where: { id: rombelId } })

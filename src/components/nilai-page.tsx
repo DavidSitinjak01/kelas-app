@@ -76,10 +76,12 @@ export function NilaiPage() {
   const [peringkatKelas, setPeringkatKelas] = useState<PeringkatItem[]>([])
   const [peringkatTingkat, setPeringkatTingkat] = useState<PeringkatItem[]>([])
   const [peringkatKelasRombel, setPeringkatKelasRombel] = useState('')
-  const [peringkatTingkatKelas, setPeringkatTingkatKelas] = useState('10')
+  const [peringkatTingkatKelas, setPeringkatTingkatKelas] = useState('')
   const [rombelSummary, setRombelSummary] = useState<RombelSummary[]>([])
   const [loadingPeringkat, setLoadingPeringkat] = useState(false)
   const [peringkatPage, setPeringkatPage] = useState(1)
+  const [tingkatSummary, setTingkatSummary] = useState<{ kelas: number; rombelCount: number; siswaCount: number; nilaiCount: number; rombels: { id: string; nama: string; siswaCount: number; nilaiCount: number }[] }[]>([])
+  const [rombelNilaiInfo, setRombelNilaiInfo] = useState<Map<string, number>>(new Map())
 
   const { toast } = useToast()
 
@@ -112,6 +114,35 @@ export function NilaiPage() {
 
       // Fetch all mata pelajaran
       fetchMataPelajaran()
+
+      // Fetch tingkat summary to auto-select first tingkat with data
+      const summaryRes = await fetch('/api/peringkat?type=summary')
+      const summaryJson = await summaryRes.json()
+      if (summaryJson.tingkatSummary) {
+        setTingkatSummary(summaryJson.tingkatSummary)
+        // Build rombel nilai info map
+        const rombelMap = new Map<string, number>()
+        for (const t of summaryJson.tingkatSummary) {
+          for (const r of t.rombels) {
+            rombelMap.set(r.id, r.nilaiCount)
+          }
+        }
+        setRombelNilaiInfo(rombelMap)
+        // Auto-select first tingkat with nilai data
+        if (summaryJson.firstTingkatWithNilai) {
+          setPeringkatTingkatKelas(String(summaryJson.firstTingkatWithNilai))
+        } else {
+          // No data at all, default to 10
+          setPeringkatTingkatKelas('10')
+        }
+        // Auto-select first rombel with nilai data for Peringkat Kelas
+        const firstRombelWithNilai = summaryJson.tingkatSummary
+          .flatMap((t: { rombels: { id: string; nilaiCount: number }[] }) => t.rombels)
+          .find((r: { nilaiCount: number }) => r.nilaiCount > 0)
+        if (firstRombelWithNilai) {
+          setPeringkatKelasRombel(firstRombelWithNilai.id)
+        }
+      }
     } catch {
       toast({ title: 'Gagal memuat data', variant: 'destructive' })
     } finally {
@@ -183,8 +214,9 @@ export function NilaiPage() {
 
   useEffect(() => { if (peringkatKelasRombel) fetchPeringkatKelas() }, [fetchPeringkatKelas])
 
-  // Fetch peringkat tingkat
+  // Fetch peringkat tingkat - only when tingkat is set
   const fetchPeringkatTingkat = useCallback(async () => {
+    if (!peringkatTingkatKelas) return
     setLoadingPeringkat(true)
     try {
       const res = await fetch(`/api/peringkat?type=tingkat&tingkat=${peringkatTingkatKelas}`)
@@ -202,7 +234,7 @@ export function NilaiPage() {
     }
   }, [peringkatTingkatKelas, toast])
 
-  useEffect(() => { fetchPeringkatTingkat() }, [fetchPeringkatTingkat])
+  useEffect(() => { if (peringkatTingkatKelas) fetchPeringkatTingkat() }, [fetchPeringkatTingkat])
 
   // Reset page on filter change
   useEffect(() => { setPage(1); setPeringkatPage(1) }, [filterRombel, filterMapel])
@@ -444,15 +476,25 @@ export function NilaiPage() {
             <TabsContent value="peringkat-kelas" className="m-0 space-y-4">
               <div className="flex items-center gap-3 flex-wrap">
                 <Select value={peringkatKelasRombel} onValueChange={setPeringkatKelasRombel}>
-                  <SelectTrigger className="w-52">
+                  <SelectTrigger className="w-56">
                     <SelectValue placeholder="Pilih Rombel..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {rombelList.sort((a, b) => a.kelas - b.kelas || a.nama.localeCompare(b.nama)).map(r => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.nama} (Kelas {r.kelas})
-                      </SelectItem>
-                    ))}
+                    {rombelList.sort((a, b) => a.kelas - b.kelas || a.nama.localeCompare(b.nama)).map(r => {
+                      const nilaiCount = rombelNilaiInfo.get(r.id) || 0
+                      return (
+                        <SelectItem key={r.id} value={r.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{r.nama}</span>
+                            {nilaiCount > 0 ? (
+                              <Badge variant="default" className="h-5 px-1.5 text-[10px] bg-emerald-600">{nilaiCount}</Badge>
+                            ) : (
+                              <Badge variant="outline" className="h-5 px-1.5 text-[10px] text-muted-foreground">-</Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
                 {peringkatKelasRombel && (
@@ -552,13 +594,25 @@ export function NilaiPage() {
             <TabsContent value="peringkat-tingkat" className="m-0 space-y-4">
               <div className="flex items-center gap-3 flex-wrap">
                 <Select value={peringkatTingkatKelas} onValueChange={(v) => { setPeringkatTingkatKelas(v); setPeringkatPage(1) }}>
-                  <SelectTrigger className="w-44">
-                    <SelectValue />
+                  <SelectTrigger className="w-56">
+                    <SelectValue placeholder="Pilih Tingkat..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="10">Kelas X (10)</SelectItem>
-                    <SelectItem value="11">Kelas XI (11)</SelectItem>
-                    <SelectItem value="12">Kelas XII (12)</SelectItem>
+                    {tingkatSummary.map(t => {
+                      const label = t.kelas === 10 ? 'X' : t.kelas === 11 ? 'XI' : 'XII'
+                      return (
+                        <SelectItem key={t.kelas} value={String(t.kelas)}>
+                          <div className="flex items-center gap-2">
+                            <span>Kelas {label} ({t.kelas})</span>
+                            {t.nilaiCount > 0 ? (
+                              <Badge variant="default" className="h-5 px-1.5 text-[10px] bg-emerald-600">{t.nilaiCount} nilai</Badge>
+                            ) : (
+                              <Badge variant="outline" className="h-5 px-1.5 text-[10px] text-muted-foreground">kosong</Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
                 {peringkatTingkat.length > 0 && (
@@ -591,6 +645,7 @@ export function NilaiPage() {
                 <div className="text-center py-12 text-muted-foreground">
                   <Trophy className="h-12 w-12 mx-auto mb-3 opacity-30" />
                   <p>Belum ada data nilai untuk tingkat ini</p>
+                  <p className="text-xs mt-1">Import leger nilai untuk menampilkan peringkat</p>
                   <Button variant="outline" size="sm" className="mt-2" onClick={() => setImportOpen(true)}>
                     <Upload className="h-4 w-4 mr-1" /> Import Leger
                   </Button>

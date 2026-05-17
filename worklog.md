@@ -125,3 +125,31 @@ Stage Summary:
 - All 21 mata pelajaran now show in the filter dropdown
 - Proper server-side pagination implemented for detail nilai tab
 - No breaking changes to existing functionality
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix Peringkat Pertingkat not auto-loading data - auto-select tingkat with data
+
+Work Log:
+- Diagnosed issue: Peringkat Tingkat defaulted to "Kelas X (10)" which has 0 nilai data. Only XII Baluse (kelas 12) has 707 nilai records
+- Added `type=summary` endpoint to `/api/peringkat/route.ts`:
+  - Returns tingkat summary with nilai counts per tingkat and per rombel
+  - Returns `firstTingkatWithNilai` to indicate which tingkat to auto-select
+- Updated `nilai-page.tsx`:
+  - Added `tingkatSummary` state with per-tingkat and per-rombel data
+  - Added `rombelNilaiInfo` Map for per-rombel nilai counts
+  - On component mount, fetch summary and auto-select first tingkat with data
+  - Auto-select first rombel with data for Peringkat Kelas tab
+  - Peringkat Tingkat dropdown now shows badges: green "707 nilai" for tingkat with data, "kosong" for empty
+  - Peringkat Kelas dropdown now shows badges: green count for rombel with data, "-" for empty
+  - Guard clause added to `fetchPeringkatTingkat` to not fetch when tingkat is empty
+- Verified API: summary returns correct data (10: 0 nilai, 11: 0 nilai, 12: 707 nilai, firstTingkatWithNilai: 12)
+- Verified API: peringkat tingkat 12 returns 36 siswa, 1 rombel summary
+- Lint check passes with no errors
+
+Stage Summary:
+- Peringkat Pertingkat now automatically selects the first tingkat that has data (Kelas XII)
+- Both Peringkat Kelas and Peringkat Tingkat dropdowns show data availability indicators
+- Only XII Baluse currently has nilai data (707 records, 36 siswa, 21 mapel)
+- Kelas X and XI have no nilai data yet - user needs to import leger for those
