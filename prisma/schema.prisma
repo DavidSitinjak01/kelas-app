@@ -31,6 +31,7 @@ model Siswa {
   rombel        Rombel   @relation(fields: [rombelId], references: [id], onDelete: Cascade)
   nilai         Nilai[]
   eligible      Eligible?
+  tka           TKA?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -61,4 +62,30 @@ model Eligible {
   keterangan  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model TKA {
+  id                    String   @id @default(cuid())
+  siswaId               String   @unique
+  siswa                 Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  nomorPeserta          String   @default("-")
+  tanggalPelaksanaan    String   @default("-")
+  // Mata Pelajaran Wajib
+  bindoNilai            Float    @default(0)
+  bindoKategori         String   @default("-")
+  matNilai              Float    @default(0)
+  matKategori           String   @default("-")
+  bingNilai             Float    @default(0)
+  bingKategori          String   @default("-")
+  // Mata Pelajaran Pilihan (nama ditentukan per siswa)
+  pilihan1Nama          String   @default("-")
+  pilihan1Nilai         Float    @default(0)
+  pilihan1Kategori      String   @default("-")
+  pilihan2Nama          String   @default("-")
+  pilihan2Nilai         Float    @default(0)
+  pilihan2Kategori      String   @default("-")
+  // Metadata
+  tkaId                 String   @default("-")  // ID from PDF (e.g. TKA25-U2UVHL96R)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }

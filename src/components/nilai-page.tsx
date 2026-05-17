@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   Plus, Pencil, Trash2, Upload, FileSpreadsheet, Loader2,
   CheckCircle, AlertCircle, Trophy, Medal, BarChart3, ChevronLeft, ChevronRight,
-  XCircle,
+  XCircle, FileText, Trash,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -36,6 +36,20 @@ interface PeringkatItem {
 
 interface RombelSummary {
   rombelId: string; rombelNama: string; count: number; avgRataRata: number
+}
+
+interface TKARecord {
+  id: string
+  siswaId: string
+  nomorPeserta: string
+  tanggalPelaksanaan: string
+  bindoNilai: number; bindoKategori: string
+  matNilai: number; matKategori: string
+  bingNilai: number; bingKategori: string
+  pilihan1Nama: string; pilihan1Nilai: number; pilihan1Kategori: string
+  pilihan2Nama: string; pilihan2Nilai: number; pilihan2Kategori: string
+  tkaId: string
+  siswa: { id: string; nis: string; nisn: string; nama: string; rombelId: string; rombel: Rombel }
 }
 
 const PAGE_SIZE = 30
@@ -86,6 +100,17 @@ export function NilaiPage() {
 
   // Eligible status map (siswaId -> status)
   const [eligibleMap, setEligibleMap] = useState<Map<string, string>>(new Map())
+
+  // TKA state
+  const [tkaData, setTkaData] = useState<TKARecord[]>([])
+  const [tkaLoading, setTkaLoading] = useState(false)
+  const [tkaImportOpen, setTkaImportOpen] = useState(false)
+  const [tkaImporting, setTkaImporting] = useState(false)
+  const [tkaImportResult, setTkaImportResult] = useState<{
+    success: boolean; totalProcessed: number; totalCreated: number; totalSkipped: number; errors: string[]
+  } | null>(null)
+  const [tkaSelectedFiles, setTkaSelectedFiles] = useState<File[]>([])
+  const [tkaFilterRombel, setTkaFilterRombel] = useState('all')
 
   const { toast } = useToast()
 
@@ -170,6 +195,26 @@ export function NilaiPage() {
   }, [])
 
   useEffect(() => { fetchData(); fetchEligibleStatus() }, [fetchData, fetchEligibleStatus])
+
+  // Fetch TKA data - defined after tkaFilterRombel state
+  const fetchTkaData = useCallback(async () => {
+    setTkaLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (tkaFilterRombel !== 'all') params.set('rombelId', tkaFilterRombel)
+      const res = await fetch(`/api/tka?${params}`)
+      const json = await res.json()
+      if (Array.isArray(json)) {
+        setTkaData(json)
+      }
+    } catch {
+      // silent
+    } finally {
+      setTkaLoading(false)
+    }
+  }, [tkaFilterRombel])
+
+  useEffect(() => { if (activeTab === 'tka') fetchTkaData() }, [activeTab, fetchTkaData])
 
   // Fetch detail nilai when switching to detail tab
   useEffect(() => {
@@ -432,6 +477,76 @@ export function NilaiPage() {
     }
   }
 
+  // TKA Import handler
+  const handleTkaImport = async () => {
+    setTkaImporting(true)
+    setTkaImportResult(null)
+
+    try {
+      const uploadedPaths: string[] = []
+
+      for (const file of tkaSelectedFiles) {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!uploadRes.ok) throw new Error('Gagal mengupload file')
+        const uploadData = await uploadRes.json()
+        uploadedPaths.push(uploadData.filePath)
+      }
+
+      if (uploadedPaths.length === 0) {
+        throw new Error('Pilih file PDF terlebih dahulu')
+      }
+
+      const importRes = await fetch('/api/import-tka', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePaths: uploadedPaths }),
+      })
+
+      const result = await importRes.json()
+      if (!importRes.ok) throw new Error(result.error || 'Gagal mengimport')
+
+      setTkaImportResult(result)
+      fetchTkaData()
+
+      if (result.totalCreated > 0) {
+        toast({
+          title: 'Import TKA Berhasil',
+          description: `${result.totalCreated} data TKA dari ${result.totalProcessed} siswa`,
+        })
+      }
+    } catch (e: unknown) {
+      toast({
+        title: e instanceof Error ? e.message : 'Gagal mengimport TKA',
+        variant: 'destructive',
+      })
+    } finally {
+      setTkaImporting(false)
+    }
+  }
+
+  // TKA Delete handler
+  const handleTkaDelete = async (id: string) => {
+    try {
+      const res = await fetch('/api/tka', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) throw new Error()
+      toast({ title: 'Data TKA dihapus' })
+      fetchTkaData()
+    } catch {
+      toast({ title: 'Gagal menghapus data TKA', variant: 'destructive' })
+    }
+  }
+
   const nilaiColor = (val: number) => {
     if (val >= 85) return 'text-emerald-600 font-semibold'
     if (val >= 75) return 'text-green-600'
@@ -530,11 +645,20 @@ export function NilaiPage() {
                 <TabsList>
                   <TabsTrigger value="peringkat-kelas">Peringkat Kelas</TabsTrigger>
                   <TabsTrigger value="peringkat-tingkat">Peringkat Tingkat</TabsTrigger>
+                  <TabsTrigger value="tka" className="gap-1">
+                    <FileText className="h-3.5 w-3.5" />
+                    Nilai TKA
+                  </TabsTrigger>
                   <TabsTrigger value="detail">Detail Nilai</TabsTrigger>
                 </TabsList>
-                <Button variant="outline" size="sm" onClick={() => { setSelectedFiles([]); setImportResult(null); setImportOpen(true) }}>
-                  <Upload className="h-4 w-4 mr-1" /> Import Leger
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => { setSelectedFiles([]); setImportResult(null); setImportOpen(true) }}>
+                    <Upload className="h-4 w-4 mr-1" /> Import Leger
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => { setTkaSelectedFiles([]); setTkaImportResult(null); setTkaImportOpen(true) }}>
+                    <FileText className="h-4 w-4 mr-1" /> Import TKA
+                  </Button>
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -859,6 +983,160 @@ export function NilaiPage() {
                     </div>
                   )}
                 </>
+              )}
+            </TabsContent>
+
+            {/* Nilai TKA - Kelas 12 */}
+            <TabsContent value="tka" className="m-0 space-y-4">
+              <div className="flex items-center gap-3 flex-wrap">
+                <Select value={tkaFilterRombel} onValueChange={setTkaFilterRombel}>
+                  <SelectTrigger className="w-56">
+                    <SelectValue placeholder="Pilih Rombel XII..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Rombel XII</SelectItem>
+                    {rombel12.sort((a, b) => a.nama.localeCompare(b.nama)).map(r => (
+                      <SelectItem key={r.id} value={r.id}>{r.nama}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {tkaData.length > 0 && (
+                  <Badge variant="outline" className="text-sm">{tkaData.length} siswa memiliki data TKA</Badge>
+                )}
+              </div>
+
+              {/* TKA Summary Stats */}
+              {tkaData.length > 0 && (() => {
+                const avgBindo = tkaData.reduce((s, t) => s + t.bindoNilai, 0) / tkaData.length
+                const avgMat = tkaData.reduce((s, t) => s + t.matNilai, 0) / tkaData.length
+                const avgBing = tkaData.reduce((s, t) => s + t.bingNilai, 0) / tkaData.length
+                return (
+                  <div className="grid grid-cols-3 gap-3">
+                    <Card className="border-orange-200 bg-orange-50/50 dark:bg-orange-950/10">
+                      <CardContent className="p-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Rata-rata B. Indonesia</p>
+                        <p className={`text-2xl font-bold ${nilaiColor(avgBindo)}`}>{avgBindo.toFixed(2)}</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-teal-200 bg-teal-50/50 dark:bg-teal-950/10">
+                      <CardContent className="p-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Rata-rata Matematika</p>
+                        <p className={`text-2xl font-bold ${nilaiColor(avgMat)}`}>{avgMat.toFixed(2)}</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-purple-200 bg-purple-50/50 dark:bg-purple-950/10">
+                      <CardContent className="p-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Rata-rata B. Inggris</p>
+                        <p className={`text-2xl font-bold ${nilaiColor(avgBing)}`}>{avgBing.toFixed(2)}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )
+              })()}
+
+              {tkaLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : tkaData.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p>Belum ada data TKA untuk kelas 12</p>
+                  <p className="text-xs mt-1">Import Sertifikat TKA (PDF) untuk menampilkan data</p>
+                  <Button variant="outline" size="sm" className="mt-2" onClick={() => { setTkaSelectedFiles([]); setTkaImportResult(null); setTkaImportOpen(true) }}>
+                    <FileText className="h-4 w-4 mr-1" /> Import TKA
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12 text-center">No</TableHead>
+                        <TableHead>NISN</TableHead>
+                        <TableHead>Nama Siswa</TableHead>
+                        <TableHead>Rombel</TableHead>
+                        <TableHead className="text-center">B. Indonesia</TableHead>
+                        <TableHead className="text-center">Matematika</TableHead>
+                        <TableHead className="text-center">B. Inggris</TableHead>
+                        <TableHead className="text-center">Pilihan 1</TableHead>
+                        <TableHead className="text-center">Nilai</TableHead>
+                        <TableHead className="text-center">Pilihan 2</TableHead>
+                        <TableHead className="text-center">Nilai</TableHead>
+                        <TableHead className="w-12"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tkaData.map((t, idx) => (
+                        <TableRow key={t.id}>
+                          <TableCell className="text-center text-muted-foreground">{idx + 1}</TableCell>
+                          <TableCell className="font-mono text-sm">{t.siswa.nisn}</TableCell>
+                          <TableCell className="font-medium">{t.siswa.nama}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">{t.siswa.rombel.nama}</Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div>
+                              <span className={`font-semibold ${nilaiColor(t.bindoNilai)}`}>{t.bindoNilai.toFixed(2)}</span>
+                              <p className="text-[10px] text-muted-foreground">{t.bindoKategori}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div>
+                              <span className={`font-semibold ${nilaiColor(t.matNilai)}`}>{t.matNilai.toFixed(2)}</span>
+                              <p className="text-[10px] text-muted-foreground">{t.matKategori}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div>
+                              <span className={`font-semibold ${nilaiColor(t.bingNilai)}`}>{t.bingNilai.toFixed(2)}</span>
+                              <p className="text-[10px] text-muted-foreground">{t.bingKategori}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className="text-xs font-medium">{t.pilihan1Nama}</span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div>
+                              <span className={`font-semibold ${nilaiColor(t.pilihan1Nilai)}`}>{t.pilihan1Nilai.toFixed(2)}</span>
+                              <p className="text-[10px] text-muted-foreground">{t.pilihan1Kategori}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className="text-xs font-medium">{t.pilihan2Nama}</span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div>
+                              <span className={`font-semibold ${nilaiColor(t.pilihan2Nilai)}`}>{t.pilihan2Nilai.toFixed(2)}</span>
+                              <p className="text-[10px] text-muted-foreground">{t.pilihan2Kategori}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Hapus Data TKA?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Data TKA milik {t.siswa.nama} akan dihapus permanen.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Batal</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleTkaDelete(t.id)}>Hapus</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </TabsContent>
 
@@ -1189,6 +1467,114 @@ export function NilaiPage() {
                       <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Mengimport...</>
                     ) : (
                       <><Upload className="h-4 w-4 mr-1" /> Import</>
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import TKA PDF Dialog */}
+      <Dialog open={tkaImportOpen} onOpenChange={setTkaImportOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Import Sertifikat TKA (PDF)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              <p>Upload file PDF Sertifikat Hasil TKA (SHTKA) siswa kelas 12.</p>
+              <p className="mt-1">Setiap file PDF berisi data 1 siswa. Bisa upload banyak file sekaligus.</p>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Pilih File PDF</Label>
+              <Input
+                type="file"
+                accept=".pdf"
+                multiple
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || [])
+                  setTkaSelectedFiles(files)
+                  setTkaImportResult(null)
+                }}
+              />
+            </div>
+
+            {tkaSelectedFiles.length > 0 && !tkaImportResult && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium">{tkaSelectedFiles.length} file dipilih:</p>
+                <div className="max-h-32 overflow-y-auto space-y-1">
+                  {tkaSelectedFiles.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs">
+                      <FileText className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                      <span className="truncate">{f.name}</span>
+                      <span className="text-muted-foreground shrink-0">({(f.size / 1024).toFixed(0)} KB)</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {tkaImportResult && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-emerald-600">
+                  <CheckCircle className="h-5 w-5" />
+                  <span className="font-medium">Import Selesai</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Card className="border-emerald-200">
+                    <CardContent className="p-3 text-center">
+                      <p className="text-2xl font-bold text-emerald-600">{tkaImportResult.totalProcessed}</p>
+                      <p className="text-xs text-muted-foreground">Siswa Diproses</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-emerald-200">
+                    <CardContent className="p-3 text-center">
+                      <p className="text-2xl font-bold text-emerald-600">{tkaImportResult.totalCreated}</p>
+                      <p className="text-xs text-muted-foreground">Data TKA Tersimpan</p>
+                    </CardContent>
+                  </Card>
+                </div>
+                {tkaImportResult.totalSkipped > 0 && (
+                  <div className="flex items-center gap-2 text-amber-600 text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>{tkaImportResult.totalSkipped} file dilewati</span>
+                  </div>
+                )}
+                {tkaImportResult.errors.length > 0 && (
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    <p className="text-xs font-medium text-red-600">Error:</p>
+                    {tkaImportResult.errors.map((err, i) => (
+                      <p key={i} className="text-xs text-red-500">{err}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              {tkaImportResult ? (
+                <>
+                  <Button variant="outline" onClick={() => setTkaImportOpen(false)}>Tutup</Button>
+                  <Button onClick={() => { setTkaSelectedFiles([]); setTkaImportResult(null) }}>
+                    Import Lagi
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={() => setTkaImportOpen(false)} disabled={tkaImporting}>
+                    Batal
+                  </Button>
+                  <Button onClick={handleTkaImport} disabled={tkaSelectedFiles.length === 0 || tkaImporting}>
+                    {tkaImporting ? (
+                      <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Mengimport...</>
+                    ) : (
+                      <><FileText className="h-4 w-4 mr-1" /> Import TKA</>
                     )}
                   </Button>
                 </>
