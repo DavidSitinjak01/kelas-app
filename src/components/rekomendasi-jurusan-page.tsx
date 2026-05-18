@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Compass, FlaskConical, Globe, Loader2, ChevronLeft, ChevronRight,
   TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2, BarChart3,
-  Brain, Sparkles, Users,
+  Brain, Sparkles, Users, Printer,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -118,6 +118,105 @@ export function RekomendasiJurusanPage() {
     if (val > 2) return <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
     if (val < -2) return <TrendingDown className="h-3.5 w-3.5 text-red-500" />
     return <Minus className="h-3.5 w-3.5 text-muted-foreground" />
+  }
+
+  // ============================================================
+  // REPORT GENERATION (Kelas X)
+  // ============================================================
+
+  const handlePreviewReportX = (student: AnalysisStudent) => {
+    const now = new Date()
+    const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    const ipaSubjectRows = student.ipaSubjects.map(s => `<tr><td style="padding:6px 8px;border:1px solid #ddd;">${s.mapel}</td><td style="text-align:center;padding:6px 8px;border:1px solid #ddd;font-weight:bold;">${s.rerata.toFixed(1)}</td><td style="text-align:center;padding:6px 8px;border:1px solid #ddd;">${s.weight}x</td></tr>`).join('')
+    const ipsSubjectRows = student.ipsSubjects.map(s => `<tr><td style="padding:6px 8px;border:1px solid #ddd;">${s.mapel}</td><td style="text-align:center;padding:6px 8px;border:1px solid #ddd;font-weight:bold;">${s.rerata.toFixed(1)}</td><td style="text-align:center;padding:6px 8px;border:1px solid #ddd;">${s.weight}x</td></tr>`).join('')
+    const reasoningHTML = student.reasoning.map(r => `<li style="margin-bottom:4px;">${r}</li>`).join('')
+
+    const html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Laporan Rekomendasi Jurusan - ${student.nama}</title>
+  <style>
+    @page { size: A4; margin: 15mm; }
+    @media print { body { margin: 0; padding: 0; } .no-print { display: none !important; } }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1f2937; line-height: 1.5; margin: 0; padding: 20px; }
+    h1 { font-size: 22px; color: #059669; margin-bottom: 4px; }
+    h2 { font-size: 16px; color: #374151; margin-top: 24px; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px; }
+    table { border-collapse: collapse; width: 100%; }
+    th { background: #f9fafb; font-weight: 600; text-align: left; }
+    .header-bar { background: linear-gradient(135deg, #059669, #10b981); color: white; padding: 20px 24px; border-radius: 8px; margin-bottom: 20px; }
+    .header-bar h1 { color: white; margin: 0; font-size: 20px; }
+    .header-bar p { color: rgba(255,255,255,0.9); margin: 4px 0 0; font-size: 13px; }
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+    .stat-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; text-align: center; }
+    .stat-value { font-size: 20px; font-weight: 700; }
+    .stat-label { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .bar-container { background: #f3f4f6; border-radius: 8px; height: 24px; overflow: hidden; display: flex; }
+    .bar-ipa { background: #10b981; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600; }
+    .bar-ips { background: #f59e0b; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600; }
+    .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="no-print" style="position:fixed;top:0;left:0;right:0;background:white;border-bottom:1px solid #e5e7eb;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:999;">
+    <span style="font-weight:600;color:#374151;">Preview Laporan Rekomendasi Jurusan</span>
+    <div style="display:flex;gap:8px;">
+      <button onclick="window.print()" style="background:#059669;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;">📥 Download PDF</button>
+      <button onclick="window.close()" style="background:#6b7280;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">Tutup</button>
+    </div>
+  </div>
+  <div style="margin-top:56px;">
+    <div class="header-bar">
+      <h1>Laporan Rekomendasi Jurusan Kelas X</h1>
+      <p>${dateStr}</p>
+    </div>
+    <h2 style="border:none;margin:0;padding:0;">${student.nama}</h2>
+    <p style="font-size:13px;color:#6b7280;">NIS: ${student.nis} &bull; Rombel: ${student.rombelNama}</p>
+
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value" style="color:#059669;">${student.ipaScore.toFixed(1)}</div><div class="stat-label">Skor IPA</div></div>
+      <div class="stat-card"><div class="stat-value" style="color:#d97706;">${student.ipsScore.toFixed(1)}</div><div class="stat-label">Skor IPS</div></div>
+      <div class="stat-card"><div class="stat-value">${student.overallAvg.toFixed(1)}</div><div class="stat-label">Rata-rata Nilai</div></div>
+      <div class="stat-card"><div class="stat-value">${student.confidence}%</div><div class="stat-label">Akurasi</div></div>
+    </div>
+
+    <h2>Perbandingan IPA vs IPS</h2>
+    <div class="bar-container" style="margin:8px 0 16px;">
+      <div class="bar-ipa" style="width:${Math.max(student.ipaScore, 5)}%;">IPA ${student.ipaScore.toFixed(1)}</div>
+      <div class="bar-ips" style="width:${Math.max(student.ipsScore, 5)}%;">IPS ${student.ipsScore.toFixed(1)}</div>
+    </div>
+
+    <h2>Detail Nilai Mapel IPA</h2>
+    <table style="font-size:13px;">
+      <thead><tr style="background:#f9fafb;"><th style="padding:8px;border:1px solid #ddd;">Mata Pelajaran</th><th style="padding:8px;border:1px solid #ddd;text-align:center;">Rerata</th><th style="padding:8px;border:1px solid #ddd;text-align:center;">Bobot</th></tr></thead>
+      <tbody>${ipaSubjectRows}</tbody>
+    </table>
+
+    <h2>Detail Nilai Mapel IPS</h2>
+    <table style="font-size:13px;">
+      <thead><tr style="background:#f9fafb;"><th style="padding:8px;border:1px solid #ddd;">Mata Pelajaran</th><th style="padding:8px;border:1px solid #ddd;text-align:center;">Rerata</th><th style="padding:8px;border:1px solid #ddd;text-align:center;">Bobot</th></tr></thead>
+      <tbody>${ipsSubjectRows}</tbody>
+    </table>
+
+    <h2>Alasan Rekomendasi</h2>
+    <ul style="font-size:13px;padding-left:20px;">${reasoningHTML}</ul>
+
+    <div class="footer">
+      <p>Laporan ini dihasilkan secara otomatis oleh Sistem Rekomendasi Jurusan — ${dateStr}</p>
+      <p>Hasil analisis bersifat rekomendasi dan perlu dikonsultasikan dengan pihak bimbingan konseling</p>
+    </div>
+  </div>
+</body>
+</html>`
+
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const win = window.open(url, '_blank')
+    if (win) {
+      win.onload = () => URL.revokeObjectURL(url)
+    } else {
+      toast({ title: 'Gagal membuka preview', description: 'Izinkan popup untuk melihat laporan', variant: 'destructive' })
+    }
   }
 
   if (loading && students.length === 0) {
@@ -507,6 +606,15 @@ export function RekomendasiJurusanPage() {
               </div>
               <div className="flex items-center gap-2">
                 {rekomendasiBadge(selectedStudent.rekomendasi)}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={() => handlePreviewReportX(selectedStudent)}
+                >
+                  <Printer className="h-3.5 w-3.5" />
+                  Cetak Laporan
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => setSelectedStudent(null)}>✕</Button>
               </div>
             </div>

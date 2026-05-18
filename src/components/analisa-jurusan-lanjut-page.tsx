@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -13,11 +13,12 @@ import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import {
   GraduationCap, FlaskConical, Globe, Loader2, ChevronLeft, ChevronRight,
   ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, AlertCircle,
   CheckCircle2, BarChart3, Brain, Sparkles, Users, BookOpen, Target,
-  FileText, X, Zap, Shield, ArrowRight,
+  FileText, X, Zap, Shield, ArrowRight, Printer, Download, Eye,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -139,9 +140,13 @@ export function AnalisaJurusanLanjutPage() {
   // AI analysis state
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [aiElapsed, setAiElapsed] = useState(0)
 
   // Collapsible mapping state
   const [mappingOpen, setMappingOpen] = useState(false)
+
+  // Report preview state
+  const [reportOpen, setReportOpen] = useState(false)
 
   // ============================================================
   // DATA FETCHING
@@ -195,22 +200,260 @@ export function AnalisaJurusanLanjutPage() {
   // AI ANALYSIS
   // ============================================================
 
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const aiTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
   const fetchAiAnalysis = async (siswaId: string) => {
+    // Cancel any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    if (aiTimerRef.current) {
+      clearInterval(aiTimerRef.current)
+    }
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     setAiLoading(true)
     setAiAnalysis(null)
+    setAiElapsed(0)
+
+    // Start elapsed timer
+    const startTime = Date.now()
+    aiTimerRef.current = setInterval(() => {
+      setAiElapsed(Math.floor((Date.now() - startTime) / 1000))
+    }, 1000)
+
     try {
+      // Set a 3-minute timeout
+      const timeoutId = setTimeout(() => controller.abort(), 180000)
+
       const res = await fetch('/api/analisa-jurusan-lanjut/detail', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ siswaId }),
+        signal: controller.signal,
       })
-      if (!res.ok) throw new Error('Gagal menghasilkan analisis')
+      clearTimeout(timeoutId)
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json.error || json.detail || 'Gagal menghasilkan analisis')
+      }
       const json = await res.json()
       setAiAnalysis(json.analysis || 'Tidak dapat menghasilkan analisis')
-    } catch {
-      toast({ title: 'Gagal menghasilkan analisis AI', description: 'Silakan coba lagi', variant: 'destructive' })
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        toast({ title: 'Analisis AI dibatalkan', description: 'Permintaan membutuhkan waktu terlalu lama', variant: 'destructive' })
+      } else {
+        const msg = err instanceof Error ? err.message : 'Silakan coba lagi'
+        toast({ title: 'Gagal menghasilkan analisis AI', description: msg, variant: 'destructive' })
+      }
     } finally {
       setAiLoading(false)
+      if (aiTimerRef.current) {
+        clearInterval(aiTimerRef.current)
+        aiTimerRef.current = null
+      }
+      abortControllerRef.current = null
+    }
+  }
+
+  // ============================================================
+  // REPORT GENERATION
+  // ============================================================
+
+  const generateReportHTML = (student: AnalysisResult, aiText: string | null): string => {
+    const kelasLabel = student.kelas === 11 ? 'XI' : 'XII'
+    const now = new Date()
+    const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+
+    const topMajorsHTML = student.topMajors.map((m, i) => `
+      <tr>
+        <td style="text-align:center;font-weight:bold;padding:8px;border:1px solid #ddd;">${i + 1}</td>
+        <td style="padding:8px;border:1px solid #ddd;font-weight:${i === 0 ? 'bold' : 'normal'};">${m.nama}</td>
+        <td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;color:${m.skor >= 85 ? '#059669' : m.skor >= 75 ? '#16a34a' : m.skor >= 60 ? '#d97706' : '#dc2626'};">${m.skor.toFixed(1)}</td>
+        <td style="padding:8px;border:1px solid #ddd;font-size:11px;">${m.mapelDetail.slice(0, 4).map(d => `${d.mapel} (${d.rerata.toFixed(1)})`).join(', ')}</td>
+      </tr>
+    `).join('')
+
+    const tkaHTML = student.tkaData ? `
+      <div style="margin-top:20px;">
+        <h3 style="color:#7c3aed;border-bottom:2px solid #7c3aed;padding-bottom:6px;margin-bottom:12px;">📊 Data TKA (Tes Kompetensi Akademik)</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f3f4f6;">
+              <th style="padding:8px;border:1px solid #ddd;text-align:left;">Mata Pelajaran</th>
+              <th style="padding:8px;border:1px solid #ddd;text-align:center;">Nilai</th>
+              <th style="padding:8px;border:1px solid #ddd;text-align:center;">Kategori</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:8px;border:1px solid #ddd;">Bahasa Indonesia</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.bindoNilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.bindoKategori}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;">Matematika</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.matNilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.matKategori}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;">Bahasa Inggris</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.bingNilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.bingKategori}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;">${student.tkaData.pilihan1Nama || 'Pilihan 1'}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.pilihan1Nilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.pilihan1Kategori}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;">${student.tkaData.pilihan2Nama || 'Pilihan 2'}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.pilihan2Nilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.pilihan2Kategori}</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:11px;color:#6b7280;margin-top:6px;">Rata-rata Wajib: ${((student.tkaData.bindoNilai + student.tkaData.matNilai + student.tkaData.bingNilai) / 3).toFixed(1)}</p>
+      </div>
+    ` : ''
+
+    const aiSectionHTML = aiText ? `
+      <div style="margin-top:20px;">
+        <h3 style="color:#7c3aed;border-bottom:2px solid #7c3aed;padding-bottom:6px;margin-bottom:12px;">🤖 Analisis AI Mendalam</h3>
+        <div style="font-size:13px;line-height:1.7;color:#374151;">${aiText.replace(/\n/g, '<br/>').replace(/^## (.+)$/gm, '<h4 style="font-size:14px;font-weight:bold;color:#1f2937;margin:12px 0 6px;">$1</h4>').replace(/^### (.+)$/gm, '<h5 style="font-size:13px;font-weight:bold;color:#374151;margin:10px 0 4px;">$1</h5>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/^- (.+)$/gm, '• $1')}</div>
+      </div>
+    ` : '<p style="font-size:12px;color:#9ca3af;margin-top:20px;font-style:italic;">Analisis AI belum dilakukan. Klik "Mulai Analisis AI" terlebih dahulu untuk mendapatkan analisis mendalam.</p>'
+
+    const reasoningHTML = student.reasoning.map(r => `<li style="margin-bottom:4px;">${r}</li>`).join('')
+
+    return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Laporan Analisa Jurusan - ${student.nama}</title>
+  <style>
+    @page { size: A4; margin: 15mm; }
+    @media print {
+      body { margin: 0; padding: 0; }
+      .no-print { display: none !important; }
+    }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1f2937; line-height: 1.5; margin: 0; padding: 20px; }
+    h1 { font-size: 22px; color: #059669; margin-bottom: 4px; }
+    h2 { font-size: 16px; color: #374151; margin-top: 24px; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px; }
+    h3 { font-size: 14px; margin-top: 16px; }
+    table { border-collapse: collapse; width: 100%; }
+    th { background: #f9fafb; font-weight: 600; text-align: left; }
+    .header-bar { background: linear-gradient(135deg, #059669, #10b981); color: white; padding: 20px 24px; border-radius: 8px; margin-bottom: 20px; }
+    .header-bar h1 { color: white; margin: 0; font-size: 20px; }
+    .header-bar p { color: rgba(255,255,255,0.9); margin: 4px 0 0; font-size: 13px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; font-size: 13px; margin-bottom: 16px; }
+    .info-label { color: #6b7280; }
+    .info-value { font-weight: 600; }
+    .track-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 13px; }
+    .track-ipa { background: #d1fae5; color: #065f46; }
+    .track-ips { background: #fef3c7; color: #92400e; }
+    .track-balance { background: #f1f5f9; color: #475569; }
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+    .stat-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; text-align: center; }
+    .stat-value { font-size: 20px; font-weight: 700; }
+    .stat-label { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .bar-container { background: #f3f4f6; border-radius: 8px; height: 24px; overflow: hidden; display: flex; }
+    .bar-ipa { background: #10b981; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600; }
+    .bar-ips { background: #f59e0b; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600; }
+    .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="no-print" style="position:fixed;top:0;left:0;right:0;background:white;border-bottom:1px solid #e5e7eb;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:999;">
+    <span style="font-weight:600;color:#374151;">Preview Laporan Analisa Jurusan</span>
+    <div style="display:flex;gap:8px;">
+      <button onclick="window.print()" style="background:#059669;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;">
+        📥 Download PDF
+      </button>
+      <button onclick="window.close()" style="background:#6b7280;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">
+        Tutup
+      </button>
+    </div>
+  </div>
+  <div style="margin-top:56px;">
+    <div class="header-bar">
+      <h1>Laporan Analisa Jurusan Perguruan Tinggi</h1>
+      <p>${dateStr}</p>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+      <div>
+        <h2 style="border:none;margin:0;padding:0;">${student.nama}</h2>
+        <div class="info-grid" style="margin-top:8px;">
+          <div><span class="info-label">NIS:</span> <span class="info-value">${student.nis}</span></div>
+          <div><span class="info-label">NISN:</span> <span class="info-value">${student.nisn}</span></div>
+          <div><span class="info-label">Rombel:</span> <span class="info-value">${student.rombelNama}</span></div>
+          <div><span class="info-label">Kelas:</span> <span class="info-value">${kelasLabel}</span></div>
+        </div>
+      </div>
+      <div>
+        <span class="track-badge ${student.dominantTrack === 'IPA' ? 'track-ipa' : student.dominantTrack === 'IPS' ? 'track-ips' : 'track-balance'}">
+          ${student.dominantTrack === 'IPA' ? '🔬 Jalur IPA' : student.dominantTrack === 'IPS' ? '🌍 Jalur IPS' : '⚖️ Seimbang'}
+        </span>
+      </div>
+    </div>
+
+    <h2>Kecondongan Jalur</h2>
+    <div class="bar-container" style="margin:8px 0;">
+      <div class="bar-ipa" style="width:${student.ipaInclination}%;">${student.ipaInclination >= 15 ? `IPA ${student.ipaInclination}%` : ''}</div>
+      <div class="bar-ips" style="width:${student.ipsInclination}%;">${student.ipsInclination >= 15 ? `IPS ${student.ipsInclination}%` : ''}</div>
+    </div>
+    <div style="display:flex;gap:16px;font-size:12px;color:#6b7280;margin-bottom:4px;">
+      <span>🟢 IPA: ${student.ipaInclination}%</span>
+      <span>🟡 IPS: ${student.ipsInclination}%</span>
+      <span>Tren IPA: ${student.semesterTrend.ipaTrend > 0 ? '+' : ''}${student.semesterTrend.ipaTrend.toFixed(1)}</span>
+      <span>Tren IPS: ${student.semesterTrend.ipsTrend > 0 ? '+' : ''}${student.semesterTrend.ipsTrend.toFixed(1)}</span>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value" style="color:${student.overallAvg >= 85 ? '#059669' : student.overallAvg >= 75 ? '#16a34a' : student.overallAvg >= 60 ? '#d97706' : '#dc2626'};">${student.overallAvg.toFixed(1)}</div>
+        <div class="stat-label">Rata-rata Nilai</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${Math.round(student.consistency * 100)}%</div>
+        <div class="stat-label">Konsistensi</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:${student.confidence >= 80 ? '#059669' : student.confidence >= 60 ? '#d97706' : '#dc2626'};">${student.confidence}%</div>
+        <div class="stat-label">Akurasi Analisis</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${student.topMajors.length}</div>
+        <div class="stat-label">Jurusan Rekomendasi</div>
+      </div>
+    </div>
+
+    <h2>Top 3 Jurusan Rekomendasi${student.tkaAdjustedMajors ? ' <span style="font-size:11px;background:#f3e8ff;color:#7c3aed;padding:2px 8px;border-radius:10px;">Disesuaikan TKA</span>' : ''}</h2>
+    <table style="font-size:13px;">
+      <thead>
+        <tr style="background:#f9fafb;">
+          <th style="padding:8px;border:1px solid #ddd;width:40px;text-align:center;">#</th>
+          <th style="padding:8px;border:1px solid #ddd;">Jurusan</th>
+          <th style="padding:8px;border:1px solid #ddd;width:80px;text-align:center;">Skor</th>
+          <th style="padding:8px;border:1px solid #ddd;">Mapel Pendukung</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${topMajorsHTML}
+      </tbody>
+    </table>
+
+    ${tkaHTML}
+
+    <h2>Alasan Rekomendasi</h2>
+    <ul style="font-size:13px;padding-left:20px;">${reasoningHTML}</ul>
+
+    ${aiSectionHTML}
+
+    <div class="footer">
+      <p>Laporan ini dihasilkan secara otomatis oleh Sistem Analisa Jurusan — ${dateStr}</p>
+      <p>Hasil analisis bersifat rekomendasi dan perlu dikonsultasikan dengan pihak bimbingan konseling</p>
+    </div>
+  </div>
+</body>
+</html>`
+  }
+
+  const handlePreviewReport = () => {
+    if (!selectedStudent) return
+    const html = generateReportHTML(selectedStudent, aiAnalysis)
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const win = window.open(url, '_blank')
+    if (win) {
+      win.onload = () => URL.revokeObjectURL(url)
+    } else {
+      toast({ title: 'Gagal membuka preview', description: 'Izinkan popup untuk melihat laporan', variant: 'destructive' })
     }
   }
 
@@ -592,6 +835,16 @@ export function AnalisaJurusanLanjutPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {trackBadge(selectedStudent.dominantTrack)}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-xs"
+                      onClick={handlePreviewReport}
+                      disabled={!selectedStudent.hasNilai}
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                      Cetak Laporan
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => { setSelectedStudent(null); setAiAnalysis(null) }}>
                       <X className="h-4 w-4" />
                     </Button>
@@ -916,7 +1169,15 @@ export function AnalisaJurusanLanjutPage() {
                         <div className="text-center space-y-3">
                           <Loader2 className="h-6 w-6 animate-spin text-purple-500 mx-auto" />
                           <p className="text-sm text-muted-foreground">AI sedang menganalisis profil akademik siswa...</p>
-                          <p className="text-[11px] text-muted-foreground">Proses ini membutuhkan beberapa detik</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Proses ini biasanya membutuhkan 60-90 detik
+                            {aiElapsed > 0 && <span className="ml-1 font-medium text-purple-600">({aiElapsed}s)</span>}
+                          </p>
+                          {aiElapsed > 30 && (
+                            <div className="w-48 mx-auto">
+                              <Progress value={Math.min(95, (aiElapsed / 90) * 100)} className="h-1.5" />
+                            </div>
+                          )}
                         </div>
                       </motion.div>
                     )}

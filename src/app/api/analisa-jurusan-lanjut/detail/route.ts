@@ -7,6 +7,35 @@ import ZAI from 'z-ai-web-dev-sdk'
 // Menggunakan AI untuk analisa mendalam per siswa
 // ============================================================
 
+// Allow up to 120 seconds for LLM response
+export const maxDuration = 120
+
+// Retry helper with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  initialDelay: number = 2000
+): Promise<T> {
+  let lastError: Error | null = null
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+      console.error(`Attempt ${attempt}/${maxRetries} failed:`, lastError.message)
+      
+      if (attempt < maxRetries) {
+        const delay = initialDelay * Math.pow(2, attempt - 1)
+        console.log(`Retrying in ${delay}ms...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+    }
+  }
+  
+  throw lastError || new Error('All retries failed')
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
@@ -55,13 +84,15 @@ Data TKA (Tes Kompetensi Akademik):
 - Tanggal Pelaksanaan: ${t.tanggalPelaksanaan}`
     }
 
-    const zai = await ZAI.create()
+    // Use retry logic for LLM call
+    const result = await retryWithBackoff(async () => {
+      const zai = await ZAI.create()
 
-    const completion = await zai.chat.completions.create({
-      messages: [
-        {
-          role: 'assistant',
-          content: `Kamu adalah konselor pendidikan dan ahli analisis jurusan perguruan tinggi di Indonesia. Kamu menganalisis profil akademik siswa SMA untuk memberikan rekomendasi jurusan perguruan tinggi yang paling cocok dan realistis.
+      const completion = await zai.chat.completions.create({
+        messages: [
+          {
+            role: 'assistant',
+            content: `Kamu adalah konselor pendidikan dan ahli analisis jurusan perguruan tinggi di Indonesia. Kamu menganalisis profil akademik siswa SMA untuk memberikan rekomendasi jurusan perguruan tinggi yang paling cocok dan realistis.
 
 Analisis harus mempertimbangkan:
 1. Kecenderungan akademik (IPA/IPS) berdasarkan nilai rapor
@@ -72,10 +103,10 @@ Analisis harus mempertimbangkan:
 6. Peluang masuk perguruan tinggi melalui jalur SNBP, SNBT, dan mandiri
 
 Jawab dalam Bahasa Indonesia dengan format yang terstruktur dan mudah dipahami.`
-        },
-        {
-          role: 'user',
-          content: `Analisis jurusan perguruan tinggi yang paling cocok untuk siswa berikut:
+          },
+          {
+            role: 'user',
+            content: `Analisis jurusan perguruan tinggi yang paling cocok untuk siswa berikut:
 
 Nama: ${siswa.nama}
 NIS: ${siswa.nis}
@@ -115,12 +146,14 @@ Untuk setiap jurusan, berikan:
 ## Kesimpulan
 - Rangkuman jurusan yang paling cocok dan alasannya
 - Saran motivasi untuk siswa`
-        }
-      ],
-      thinking: { type: 'disabled' }
-    })
+          }
+        ],
+        thinking: { type: 'disabled' }
+      })
 
-    const analysis = completion.choices[0]?.message?.content || 'Tidak dapat menghasilkan analisis'
+      const analysis = completion.choices[0]?.message?.content || 'Tidak dapat menghasilkan analisis'
+      return analysis
+    }, 3, 2000)
 
     return NextResponse.json({
       siswaId,
@@ -128,10 +161,24 @@ Untuk setiap jurusan, berikan:
       nis: siswa.nis,
       rombelNama: siswa.rombel.nama,
       kelas: siswa.rombel.kelas,
-      analysis,
+      analysis: result,
     })
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error'
     console.error('Analisa jurusan lanjut detail error:', error)
-    return NextResponse.json({ error: 'Gagal menghasilkan analisis' }, { status: 500 })
+    
+    // Return more specific error message
+    let userMessage = 'Gagal menghasilkan analisis AI'
+    if (errorMsg.includes('timeout') || errorMsg.includes('Timeout')) {
+      userMessage = 'Analisis AI timeout — server membutuhkan waktu terlalu lama. Silakan coba lagi.'
+    } else if (errorMsg.includes('rate limit') || errorMsg.includes('429')) {
+      userMessage = 'Server AI sedang sibuk — silakan tunggu beberapa saat dan coba lagi.'
+    } else if (errorMsg.includes('network') || errorMsg.includes('ECONNREFUSED')) {
+      userMessage = 'Koneksi ke server AI gagal — periksa koneksi internet dan coba lagi.'
+    } else if (errorMsg.includes('All retries failed')) {
+      userMessage = 'Analisis AI gagal setelah beberapa percobaan. Silakan coba lagi dalam beberapa saat.'
+    }
+    
+    return NextResponse.json({ error: userMessage, detail: errorMsg }, { status: 500 })
   }
 }

@@ -33,3 +33,74 @@ Stage Summary:
 - Class 11 results: 31 IPA, 44 IPS, 245 Balanced out of 320 students; no TKA (expected)
 - LLM-powered detail analysis works (~60s response time)
 - Lint passes clean, dev server running with 200 responses
+
+---
+Task ID: 3
+Agent: SubAgent
+Task: Update Caddyfile for longer proxy timeouts
+
+Work Log:
+- Added transport http block with read_timeout 180s, write_timeout 180s, dial_timeout 30s to both reverse_proxy blocks
+- Reloaded Caddy configuration
+
+Stage Summary:
+- Caddy now allows up to 180 seconds for proxy responses (enough for 60-80s LLM calls)
+- Both main proxy and XTransformPort proxy updated
+
+---
+Task ID: 1
+Agent: SubAgent
+Task: Fix AI analysis 'Gagal' error
+
+Work Log:
+- Added maxDuration = 120 to allow longer LLM response times
+- Implemented retryWithBackoff helper (3 retries, exponential backoff)
+- Added detailed error messages for different failure scenarios
+- Improved error propagation from catch block
+
+Stage Summary:
+- API route now supports up to 120s timeout
+- LLM calls retry up to 3 times with exponential backoff
+- Users get specific error messages instead of generic "Gagal"
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix AI Analysis 'Gagal' notification + Add PDF report with preview before download
+
+Work Log:
+- Fixed API route `/api/analisa-jurusan-lanjut/detail/route.ts`:
+  - Added `export const maxDuration = 120` for longer serverless function timeout
+  - Added `retryWithBackoff` helper with 3 retries and exponential backoff (2s→4s→8s)
+  - Improved error messages: timeout, rate limit, network, retry failures each get specific messages
+  - Returns both user-friendly `error` and technical `detail` in response
+- Fixed frontend `fetchAiAnalysis` in `analisa-jurusan-lanjut-page.tsx`:
+  - Added AbortController with 3-minute (180s) client-side timeout
+  - Added elapsed time counter (`aiElapsed` state) showing seconds during loading
+  - Added progress bar that appears after 30 seconds
+  - Improved error handling: shows API error messages instead of generic "Gagal"
+  - Cancels previous request if user clicks again
+- Added PDF report generation with preview:
+  - Added `generateReportHTML` function that creates full HTML report including:
+    - Student info (name, NIS, NISN, rombel, kelas)
+    - Track inclination bar (IPA vs IPS) with percentages
+    - Quick stats (rata-rata, konsistensi, akurasi, jurusan count)
+    - Top 3 major recommendations table with scores
+    - TKA data table (class 12 only)
+    - Reasoning bullet points
+    - AI analysis section (if generated)
+  - Opens in new browser tab for preview
+  - "Download PDF" button uses `window.print()` with CSS @media print
+  - Added "Cetak Laporan" button in student detail panel (both Kelas X and XI/XII pages)
+- Added report to Kelas X `rekomendasi-jurusan-page.tsx`:
+  - Added `handlePreviewReportX` function with simplified report for class 10
+  - Includes IPA/IPS subject tables, score comparison, reasoning
+  - Same preview-then-download workflow
+- Updated Caddyfile with longer proxy timeouts (180s read/write)
+
+Stage Summary:
+- AI Analysis now works reliably with retry logic and better timeout handling
+- Users see progress indicator with elapsed time during AI analysis
+- Both Kelas X and XI/XII pages have "Cetak Laporan" button
+- Report opens in new tab for preview, then uses browser print for PDF download
+- All lint checks pass, dev server running normally
