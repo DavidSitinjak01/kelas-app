@@ -8,6 +8,7 @@ import {
   CheckCircle,
   BarChart3,
   Compass,
+  Target,
   Building2,
 } from 'lucide-react'
 import {
@@ -32,6 +33,7 @@ const menuItems: { key: PageKey; label: string; icon: React.ElementType }[] = [
   { key: 'eligible', label: 'Eligible', icon: CheckCircle },
   { key: 'analisa', label: 'Analisa Nilai', icon: BarChart3 },
   { key: 'rekomendasi-jurusan', label: 'Rekomendasi Jurusan', icon: Compass },
+  { key: 'analisa-jurusan-lanjut', label: 'Analisa Jurusan Lanjut', icon: Target },
   { key: 'rekomendasi-pt', label: 'Rekomendasi PT', icon: Building2 },
 ]
 

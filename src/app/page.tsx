@@ -11,6 +11,7 @@ import { EligiblePage } from '@/components/eligible-page'
 import { AnalisaPage } from '@/components/analisa-page'
 import { RekomendasiJurusanPage } from '@/components/rekomendasi-jurusan-page'
 import { RekomendasiPtPage } from '@/components/rekomendasi-pt-page'
+import { AnalisaJurusanLanjutPage } from '@/components/analisa-jurusan-lanjut-page'
 import { Separator } from '@/components/ui/separator'
 
 const pageTitles: Record<string, string> = {
@@ -21,6 +22,7 @@ const pageTitles: Record<string, string> = {
   eligible: 'Eligible (Kelas 12)',
   analisa: 'Analisa Nilai',
   'rekomendasi-jurusan': 'Rekomendasi Jurusan',
+  'analisa-jurusan-lanjut': 'Analisa Jurusan Lanjut',
   'rekomendasi-pt': 'Rekomendasi Perguruan Tinggi',
 }
 
@@ -36,6 +38,7 @@ export default function Home() {
       case 'eligible': return <EligiblePage />
       case 'analisa': return <AnalisaPage />
       case 'rekomendasi-jurusan': return <RekomendasiJurusanPage />
+      case 'analisa-jurusan-lanjut': return <AnalisaJurusanLanjutPage />
       case 'rekomendasi-pt': return <RekomendasiPtPage />
       default: return <DashboardPage />
     }

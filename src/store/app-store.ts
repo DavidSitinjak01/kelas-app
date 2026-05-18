@@ -8,6 +8,7 @@ export type PageKey =
   | 'eligible'
   | 'analisa'
   | 'rekomendasi-jurusan'
+  | 'analisa-jurusan-lanjut'
   | 'rekomendasi-pt'
 
 interface AppState {
