@@ -10,7 +10,7 @@ import { NextResponse } from 'next/server'
 
 // ---------- SUBJECT-TO-MAJOR MAPPING ----------
 
-// Major categories for IPA track students (EXPANDED - 10 categories)
+// Major categories for IPA track students (EXPANDED - 14 categories)
 const IPA_MAJOR_WEIGHTS: Record<string, Record<string, number>> = {
   'Teknik & Teknologi': {
     'fisika': 3.5,
@@ -93,9 +93,41 @@ const IPA_MAJOR_WEIGHTS: Record<string, Record<string, number>> = {
     'biologi': 1.0,
     'matematika (umum)': 1.0,
   },
+  'Gizi & Kesehatan Masyarakat': {
+    'biologi': 3.0,
+    'kimia': 2.5,
+    'matematika (umum)': 2.0,
+    'bahasa indonesia': 2.0,
+    'ekonomi': 1.5,
+    'bahasa inggris': 1.5,
+  },
+  'Bioteknologi & Ilmu Genetik': {
+    'biologi': 3.5,
+    'kimia': 3.0,
+    'matematika (umum)': 2.5,
+    'fisika': 2.0,
+    'bahasa inggris': 2.0,
+    'informatika': 1.5,
+  },
+  'Teknik Geofisika & Geologi': {
+    'fisika': 3.5,
+    'matematika (umum)': 3.0,
+    'matematika tingkat lanjut': 2.5,
+    'kimia': 2.0,
+    'geografi': 2.0,
+    'bahasa inggris': 1.5,
+  },
+  'Ilmu Keolahragaan': {
+    'biologi': 3.0,
+    'fisika': 2.0,
+    'matematika (umum)': 2.0,
+    'bahasa indonesia': 2.0,
+    'bahasa inggris': 1.5,
+    'kimia': 1.0,
+  },
 }
 
-// Major categories for IPS track students (EXPANDED - 10 categories)
+// Major categories for IPS track students (EXPANDED - 14 categories)
 const IPS_MAJOR_WEIGHTS: Record<string, Record<string, number>> = {
   'Ekonomi & Bisnis': {
     'ekonomi': 3.5,
@@ -172,6 +204,38 @@ const IPS_MAJOR_WEIGHTS: Record<string, Record<string, number>> = {
     'bahasa inggris': 2.0,
     'bahasa indonesia': 1.5,
     'sosiologi': 1.0,
+  },
+  'Kriminologi & Kepolisian': {
+    'sosiologi': 3.0,
+    'bahasa indonesia': 3.0,
+    'sejarah': 2.5,
+    'ekonomi': 1.5,
+    'bahasa inggris': 1.5,
+    'matematika (umum)': 1.5,
+  },
+  'Perencanaan Wilayah & Kota': {
+    'geografi': 3.5,
+    'ekonomi': 2.5,
+    'matematika (umum)': 2.5,
+    'sosiologi': 2.0,
+    'bahasa indonesia': 1.5,
+    'bahasa inggris': 1.5,
+  },
+  'Ilmu Perpustakaan & Informasi': {
+    'bahasa indonesia': 3.0,
+    'bahasa inggris': 2.5,
+    'sejarah': 2.0,
+    'sosiologi': 2.0,
+    'informatika': 2.0,
+    'matematika (umum)': 1.5,
+  },
+  'Desain Komunikasi Visual & Kreatif': {
+    'bahasa indonesia': 2.5,
+    'bahasa inggris': 2.0,
+    'sosiologi': 2.0,
+    'ekonomi': 2.0,
+    'sejarah': 1.5,
+    'geografi': 1.5,
   },
 }
 
@@ -282,6 +346,46 @@ const MAJOR_SPECIFIC_JURUSAN: Record<string, { jurusan: string; deskripsi: strin
     { jurusan: 'Keuangan', deskripsi: 'Manajemen keuangan dan investasi', prospek: 'Bank, sekuritas, asuransi, manajer investasi' },
     { jurusan: 'Perbankan & Keuangan Digital', deskripsi: 'Sistem keuangan dan perbankan digital', prospek: 'Fintech, bank digital, OJK' },
   ],
+  'Gizi & Kesehatan Masyarakat': [
+    { jurusan: 'Ilmu Gizi', deskripsi: 'Nutrisi dan diet untuk kesehatan', prospek: 'RS, klinik gizi, industri makanan, Dinkes' },
+    { jurusan: 'Kesehatan Masyarakat', deskripsi: 'Promosi dan pencegahan penyakit', prospek: 'Dinkes, WHO, NGO kesehatan, RS' },
+    { jurusan: 'Epidemiologi', deskripsi: 'Studi penyebaran penyakit', prospek: 'WHO, Kemenkes, riset kesehatan' },
+  ],
+  'Bioteknologi & Ilmu Genetik': [
+    { jurusan: 'Bioteknologi', deskripsi: 'Penerapan biologi dalam teknologi', prospek: 'Industri farmasi, pertanian, kesehatan' },
+    { jurusan: 'Genetika', deskripsi: 'Studi gen dan pewarisan sifat', prospek: 'Riset medis, bioteknologi, forensik' },
+    { jurusan: 'Biologi Molekuler', deskripsi: 'Studi biologis di tingkat molekul', prospek: 'Riset, farmasi, diagnostik' },
+  ],
+  'Teknik Geofisika & Geologi': [
+    { jurusan: 'Teknik Geofisika', deskripsi: 'Survei dan eksplorasi bumi', prospek: 'Migas, pertambangan, BMKG' },
+    { jurusan: 'Teknik Geologi', deskripsi: 'Studi struktur dan komposisi bumi', prospek: 'Migas, pertambangan, geotermal' },
+    { jurusan: 'Oseanografi', deskripsi: 'Studi lautan dan sumber daya laut', prospek: 'BRIN, KLHK, kelautan, perikanan' },
+  ],
+  'Ilmu Keolahragaan': [
+    { jurusan: 'Ilmu Keolahragaan', deskripsi: 'Studi ilmiah tentang olahraga', prospek: 'Pelatih, pengajar, wasit, manajer olahraga' },
+    { jurusan: 'Fisioterapi', deskripsi: 'Rehabilitasi fisik dan terapi', prospek: 'RS, klinik, tim olahraga, praktek mandiri' },
+    { jurusan: 'Pendidikan Jasmani', deskripsi: 'Pengajaran olahraga di sekolah', prospek: 'Guru PJOK, instruktur, pelatih' },
+  ],
+  'Kriminologi & Kepolisian': [
+    { jurusan: 'Kriminologi', deskripsi: 'Studi kejahatan dan pencegahannya', prospek: 'Kepolisian, attorney, BNN, rehab' },
+    { jurusan: 'Ilmu Kepolisian', deskripsi: 'Penegakan hukum dan keamanan', prospek: 'Polri, intelijen, keamanan negara' },
+    { jurusan: 'Forensik Digital', deskripsi: 'Investigasi kejahatan siber', prospek: 'Cyber crime, BSSN, tech company' },
+  ],
+  'Perencanaan Wilayah & Kota': [
+    { jurusan: 'Perencanaan Wilayah & Kota', deskripsi: 'Merencanakan tata ruang dan wilayah', prospek: 'Bappenas, pemda, konsultan, developer' },
+    { jurusan: 'Geografi', deskripsi: 'Analisis spasial dan geoinformatika', prospek: 'BPN, pemetaan, GIS, perencanaan' },
+    { jurusan: 'Kajian Wilayah', deskripsi: 'Kajian potensi dan perencanaan wilayah', prospek: 'Pemda, NGO, riset, pembangunan' },
+  ],
+  'Ilmu Perpustakaan & Informasi': [
+    { jurusan: 'Ilmu Perpustakaan', deskripsi: 'Manajemen perpustakaan dan informasi', prospek: 'Perpustakaan, arsip, museum, akademisi' },
+    { jurusan: 'Ilmu Informasi', deskripsi: 'Organisasi dan akses informasi', prospek: 'Tech company, arsip digital, data management' },
+    { jurusan: 'Arsipistik', deskripsi: 'Manajemen arsip dan rekam', prospek: 'ANRI, pemerintah, korporasi, museum' },
+  ],
+  'Desain Komunikasi Visual & Kreatif': [
+    { jurusan: 'Desain Komunikasi Visual', deskripsi: 'Desain grafis dan media visual', prospek: 'Agency, media, startup, freelance' },
+    { jurusan: 'Animasi', deskripsi: 'Produksi animasi dan motion graphic', prospek: 'Studio animasi, game, film, advertising' },
+    { jurusan: 'Film & Televisi', deskripsi: 'Produksi konten audio visual', prospek: 'Production house, TV, streaming platform' },
+  ],
 }
 
 // Core IPA / IPS subject weights (for determining IPA vs IPS inclination)
@@ -320,16 +424,18 @@ const EXCLUDED_PATTERNS = [
 
 // TKA elective subject to major mapping (EXPANDED)
 const TKA_PILIHAN_MAJOR_MAP: Record<string, { track: 'ipa' | 'ips'; majors: string[]; weight: number }> = {
-  'matematika tingkat lanjut': { track: 'ipa', majors: ['Teknik & Teknologi', 'Matematika & Ilmu Komputer', 'Teknik Informatika & Sistem Informasi', 'Arsitektur & Desain'], weight: 3.0 },
-  'fisika': { track: 'ipa', majors: ['Teknik & Teknologi', 'Ilmu Alam & Lingkungan', 'Arsitektur & Desain'], weight: 3.0 },
-  'kimia': { track: 'ipa', majors: ['Farmasi & Kimia Terapan', 'Ilmu Alam & Lingkungan', 'Kedokteran & Kesehatan', 'Kedokteran Gigi'], weight: 3.0 },
-  'biologi': { track: 'ipa', majors: ['Kedokteran & Kesehatan', 'Ilmu Alam & Lingkungan', 'Kedokteran Gigi', 'Keperawatan & Kebidanan', 'Psikologi'], weight: 3.0 },
-  'informatika': { track: 'ipa', majors: ['Matematika & Ilmu Komputer', 'Teknik & Teknologi', 'Teknik Informatika & Sistem Informasi'], weight: 2.5 },
-  'ekonomi': { track: 'ips', majors: ['Ekonomi & Bisnis', 'Akuntansi & Keuangan'], weight: 3.0 },
-  'geografi': { track: 'ips', majors: ['Hubungan Internasional & Sosial Politik', 'Ilmu Alam & Lingkungan', 'Pariwisata & Perhotelan'], weight: 2.5 },
-  'sejarah': { track: 'ips', majors: ['Hukum', 'Hubungan Internasional & Sosial Politik', 'Pendidikan', 'Sastra Indonesia & Daerah'], weight: 2.5 },
-  'sosiologi': { track: 'ips', majors: ['Psikologi', 'Ilmu Komunikasi', 'Hukum', 'Administrasi Publik & Pemerintahan'], weight: 2.5 },
+  'matematika tingkat lanjut': { track: 'ipa', majors: ['Teknik & Teknologi', 'Matematika & Ilmu Komputer', 'Teknik Informatika & Sistem Informasi', 'Arsitektur & Desain', 'Teknik Geofisika & Geologi'], weight: 3.0 },
+  'fisika': { track: 'ipa', majors: ['Teknik & Teknologi', 'Ilmu Alam & Lingkungan', 'Arsitektur & Desain', 'Teknik Geofisika & Geologi'], weight: 3.0 },
+  'kimia': { track: 'ipa', majors: ['Farmasi & Kimia Terapan', 'Ilmu Alam & Lingkungan', 'Kedokteran & Kesehatan', 'Kedokteran Gigi', 'Bioteknologi & Ilmu Genetik'], weight: 3.0 },
+  'biologi': { track: 'ipa', majors: ['Kedokteran & Kesehatan', 'Ilmu Alam & Lingkungan', 'Kedokteran Gigi', 'Keperawatan & Kebidanan', 'Psikologi', 'Gizi & Kesehatan Masyarakat', 'Bioteknologi & Ilmu Genetik', 'Ilmu Keolahragaan'], weight: 3.0 },
+  'informatika': { track: 'ipa', majors: ['Matematika & Ilmu Komputer', 'Teknik & Teknologi', 'Teknik Informatika & Sistem Informasi', 'Ilmu Perpustakaan & Informasi'], weight: 2.5 },
+  'ekonomi': { track: 'ips', majors: ['Ekonomi & Bisnis', 'Akuntansi & Keuangan', 'Perencanaan Wilayah & Kota'], weight: 3.0 },
+  'geografi': { track: 'ips', majors: ['Hubungan Internasional & Sosial Politik', 'Ilmu Alam & Lingkungan', 'Pariwisata & Perhotelan', 'Perencanaan Wilayah & Kota'], weight: 2.5 },
+  'sejarah': { track: 'ips', majors: ['Hukum', 'Hubungan Internasional & Sosial Politik', 'Pendidikan', 'Sastra Indonesia & Daerah', 'Kriminologi & Kepolisian'], weight: 2.5 },
+  'sosiologi': { track: 'ips', majors: ['Psikologi', 'Ilmu Komunikasi', 'Hukum', 'Administrasi Publik & Pemerintahan', 'Kriminologi & Kepolisian'], weight: 2.5 },
   'antropologi': { track: 'ips', majors: ['Hukum', 'Hubungan Internasional & Sosial Politik', 'Sastra Indonesia & Daerah'], weight: 2.0 },
+  'bahasa inggris': { track: 'ips', majors: ['Hubungan Internasional & Sosial Politik', 'Pariwisata & Perhotelan', 'Ilmu Komunikasi', 'Sastra & Linguistik (IPA)'], weight: 2.5 },
+  'bahasa indonesia': { track: 'ips', majors: ['Sastra Indonesia & Daerah', 'Ilmu Komunikasi', 'Hukum', 'Pendidikan'], weight: 2.5 },
 }
 
 // ---------- HELPER FUNCTIONS ----------

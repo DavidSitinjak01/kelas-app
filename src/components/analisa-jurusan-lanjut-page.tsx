@@ -235,8 +235,8 @@ export function AnalisaJurusanLanjutPage() {
     }, 1000)
 
     try {
-      // Set a 3-minute timeout
-      const timeoutId = setTimeout(() => controller.abort(), 180000)
+      // Set a 5-minute timeout (LLM can take up to 2-3 minutes)
+      const timeoutId = setTimeout(() => controller.abort(), 300000)
 
       const res = await fetch('/api/analisa-jurusan-lanjut/detail', {
         method: 'POST',
@@ -248,16 +248,31 @@ export function AnalisaJurusanLanjutPage() {
 
       if (!res.ok) {
         const json = await res.json().catch(() => ({}))
-        throw new Error(json.error || json.detail || 'Gagal menghasilkan analisis')
+        const errorMsg = json.error || json.detail || 'Gagal menghasilkan analisis'
+        throw new Error(errorMsg)
       }
       const json = await res.json()
-      setAiAnalysis(json.analysis || 'Tidak dapat menghasilkan analisis')
+
+      if (!json.analysis || json.analysis.trim().length < 10) {
+        throw new Error('AI menghasilkan respons kosong. Silakan coba lagi.')
+      }
+
+      setAiAnalysis(json.analysis)
+      toast({ title: 'Analisis AI berhasil!', description: 'Hasil analisis siap dilihat', variant: 'default' })
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
-        toast({ title: 'Analisis AI dibatalkan', description: 'Permintaan membutuhkan waktu terlalu lama', variant: 'destructive' })
+        toast({
+          title: 'Analisis AI dibatalkan',
+          description: 'Permintaan membutuhkan waktu terlalu lama. Coba lagi nanti.',
+          variant: 'destructive'
+        })
       } else {
         const msg = err instanceof Error ? err.message : 'Silakan coba lagi'
-        toast({ title: 'Gagal menghasilkan analisis AI', description: msg, variant: 'destructive' })
+        toast({
+          title: 'Gagal menghasilkan analisis AI',
+          description: msg,
+          variant: 'destructive'
+        })
       }
     } finally {
       setAiLoading(false)
@@ -1302,13 +1317,16 @@ export function AnalisaJurusanLanjutPage() {
                           <Loader2 className="h-6 w-6 animate-spin text-purple-500 mx-auto" />
                           <p className="text-sm text-muted-foreground">AI sedang menganalisis profil akademik siswa...</p>
                           <p className="text-[11px] text-muted-foreground">
-                            Proses ini biasanya membutuhkan 60-90 detik
+                            Proses ini biasanya membutuhkan 30-120 detik
                             {aiElapsed > 0 && <span className="ml-1 font-medium text-purple-600">({aiElapsed}s)</span>}
                           </p>
-                          {aiElapsed > 30 && (
+                          {aiElapsed > 15 && (
                             <div className="w-48 mx-auto">
-                              <Progress value={Math.min(95, (aiElapsed / 90) * 100)} className="h-1.5" />
+                              <Progress value={Math.min(95, (aiElapsed / 120) * 100)} className="h-1.5" />
                             </div>
+                          )}
+                          {aiElapsed > 60 && (
+                            <p className="text-[10px] text-muted-foreground mt-1">Proses masih berjalan, mohon tunggu...</p>
                           )}
                         </div>
                       </motion.div>

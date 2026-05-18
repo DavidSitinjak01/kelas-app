@@ -7,36 +7,49 @@ import ZAI from 'z-ai-web-dev-sdk'
 // Menggunakan AI untuk analisa mendalam per siswa
 // ============================================================
 
-// Allow up to 120 seconds for LLM response
-export const maxDuration = 120
+// Allow up to 300 seconds for LLM response (next dev mode)
+export const maxDuration = 300
+
+// Timeout wrapper for LLM calls
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`LLM_TIMEOUT: Request timed out after ${ms / 1000}s`)), ms)
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val) },
+      (err) => { clearTimeout(timer); reject(err) }
+    )
+  })
+}
 
 // Retry helper with exponential backoff
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
-  maxRetries: number = 3,
+  maxRetries: number = 2,
   initialDelay: number = 2000
 ): Promise<T> {
   let lastError: Error | null = null
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await fn()
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))
-      console.error(`Attempt ${attempt}/${maxRetries} failed:`, lastError.message)
-      
+      console.error(`[AI-Analysis] Attempt ${attempt}/${maxRetries} failed:`, lastError.message)
+
       if (attempt < maxRetries) {
         const delay = initialDelay * Math.pow(2, attempt - 1)
-        console.log(`Retrying in ${delay}ms...`)
+        console.log(`[AI-Analysis] Retrying in ${delay}ms...`)
         await new Promise(resolve => setTimeout(resolve, delay))
       }
     }
   }
-  
+
   throw lastError || new Error('All retries failed')
 }
 
 export async function POST(request: Request) {
+  const startTime = Date.now()
+
   try {
     const body = await request.json()
     const { siswaId } = body
@@ -59,9 +72,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Siswa tidak ditemukan' }, { status: 404 })
     }
 
+    // Check if student has grades
+    const nilaiWithScore = siswa.nilai.filter(n => n.rerata > 0)
+    if (nilaiWithScore.length === 0) {
+      return NextResponse.json({
+        error: 'Siswa belum memiliki data nilai. Import nilai rapor terlebih dahulu.'
+      }, { status: 400 })
+    }
+
     // Prepare data summary - include semester data for trend analysis
-    const nilaiSummary = siswa.nilai
-      .filter(n => n.rerata > 0)
+    const nilaiSummary = nilaiWithScore
       .sort((a, b) => b.rerata - a.rerata)
       .map(n => {
         const sems = [n.smt1, n.smt2, n.smt3, n.smt4, n.smt5, n.smt6].filter(v => v > 0)
@@ -73,129 +93,129 @@ export async function POST(request: Request) {
               const avgFirst = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length
               const avgSecond = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length
               const diff = avgSecond - avgFirst
-              if (diff > 3) return `meningkat (+${diff.toFixed(1)})`
-              if (diff < -3) return `menurun (${diff.toFixed(1)})`
-              return 'stabil'
+              if (diff > 3) return `↑+${diff.toFixed(1)}`
+              if (diff < -3) return `↓${diff.toFixed(1)}`
+              return '→'
             })()
-          : 'data kurang'
+          : '?'
 
-        return `${n.mataPelajaran}: ${n.rerata.toFixed(1)} [tren: ${trend}]`
+        return `${n.mataPelajaran}: ${n.rerata.toFixed(1)} (${trend})`
       })
       .join('\n')
 
-    const overallAvg = siswa.nilai.filter(n => n.rerata > 0).length > 0
-      ? siswa.nilai.filter(n => n.rerata > 0).reduce((s, n) => s + n.rerata, 0) / siswa.nilai.filter(n => n.rerata > 0).length
-      : 0
+    const overallAvg = nilaiWithScore.reduce((s, n) => s + n.rerata, 0) / nilaiWithScore.length
+
+    // Top 5 subjects
+    const topSubjects = nilaiWithScore
+      .sort((a, b) => b.rerata - a.rerata)
+      .slice(0, 5)
+      .map(n => n.mataPelajaran)
+      .join(', ')
+
+    // Bottom 3 subjects
+    const bottomSubjects = nilaiWithScore
+      .sort((a, b) => a.rerata - b.rerata)
+      .slice(0, 3)
+      .map(n => `${n.mataPelajaran}(${n.rerata.toFixed(1)})`)
+      .join(', ')
 
     let tkaSummary = ''
     if (siswa.tka) {
       const t = siswa.tka
+      const avgWajib = ((t.bindoNilai || 0) + (t.matNilai || 0) + (t.bingNilai || 0)) / 3
       tkaSummary = `
-Data TKA (Tes Kompetensi Akademik):
-- Bahasa Indonesia: ${t.bindoNilai} (${t.bindoKategori})
-- Matematika: ${t.matNilai} (${t.matKategori})
-- Bahasa Inggris: ${t.bingNilai} (${t.bingKategori})
-- Pilihan 1: ${t.pilihan1Nama} = ${t.pilihan1Nilai} (${t.pilihan1Kategori})
-- Pilihan 2: ${t.pilihan2Nama} = ${t.pilihan2Nilai} (${t.pilihan2Kategori})
-- Nomor Peserta: ${t.nomorPeserta}
-- Tanggal Pelaksanaan: ${t.tanggalPelaksanaan}`
+TKA: Bin=${t.bindoNilai}(${t.bindoKategori}) Mat=${t.matNilai}(${t.matKategori}) Bing=${t.bingNilai}(${t.bingKategori}) Pil1=${t.pilihan1Nama}=${t.pilihan1Nilai}(${t.pilihan1Kategori}) Pil2=${t.pilihan2Nama}=${t.pilihan2Nilai}(${t.pilihan2Kategori}) AvgWajib=${avgWajib.toFixed(1)}`
     }
 
-    // Use retry logic for LLM call
+    console.log(`[AI-Analysis] Starting analysis for ${siswa.nama} (${siswaId}), elapsed: ${Date.now() - startTime}ms`)
+
+    // Use retry logic for LLM call with 120s timeout per attempt
     const result = await retryWithBackoff(async () => {
       const zai = await ZAI.create()
 
-      const completion = await zai.chat.completions.create({
-        messages: [
-          {
-            role: 'assistant',
-            content: `Kamu adalah konselor pendidikan dan ahli analisis jurusan perguruan tinggi di Indonesia. Kamu menganalisis profil akademik siswa SMA untuk memberikan rekomendasi jurusan perguruan tinggi yang paling cocok dan realistis.
+      const analysisResult = await withTimeout(
+        zai.chat.completions.create({
+          messages: [
+            {
+              role: 'assistant',
+              content: `Kamu konselor pendidikan Indonesia. Analisis profil akademik siswa SMA, berikan rekomendasi jurusan PT yang spesifik & realistis.
 
-Analisis harus mempertimbangkan:
-1. Kecenderungan akademik (IPA/IPS) berdasarkan nilai rapor
-2. Mata pelajaran unggulan dan yang perlu ditingkatkan
-3. Tren perkembangan nilai per mata pelajaran (meningkat/menurun/stabil)
-4. Pengaruh tren perkembangan nilai terhadap rekomendasi jurusan
-5. Nilai TKA (jika ada) sebagai indikator kompetensi dan minat
-6. Mata pelajaran pilihan TKA sebagai indikator arah minat
-7. Peluang masuk perguruan tinggi melalui jalur SNBP, SNBT, dan mandiri
-
-PENTING: Berikan rekomendasi jurusan yang SPESIFIK, bukan hanya kategori umum.
-Contoh pemetaan mapel ke jurusan spesifik:
+Pemetaan mapel→jurusan (WAJIB ikuti):
 - Bahasa Indonesia unggul → Sastra Indonesia, Pendidikan Bahasa Indonesia, Ilmu Komunikasi, Jurnalistik
-- Matematika + Fisika unggul → Teknik Sipil, Teknik Mesin, Teknik Elektro, Arsitektur
-- Biologi + Kimia unggul → Kedokteran, Farmasi, Kedokteran Gigi, Keperawatan, Gizi
-- Matematika + Informatika unggul → Teknik Informatika, Sistem Informasi, Data Science, Ilmu Komputer
-- Ekonomi + Matematika unggul → Akuntansi, Manajemen, Ekonomi Pembangunan, Perbankan & Keuangan Digital
-- Bahasa Inggris + Geografi unggul → Hubungan Internasional, Pariwisata & Perhotelan, Sastra Inggris
-- Sosiologi + Sejarah unggul → Hukum, Administrasi Publik, Psikologi, Pendidikan
-- Bahasa Indonesia + Sejarah + Antropologi → Sastra Indonesia & Daerah, Ilmu Komunikasi, Pendidikan Bahasa Indonesia
+- Matematika+Fisika unggul → Teknik Sipil, Teknik Mesin, Teknik Elektro, Arsitektur, Teknik Geofisika
+- Biologi+Kimia unggul → Kedokteran, Farmasi, Kedokteran Gigi, Keperawatan, Gizi, Biologi, Bioteknologi
+- Matematika+Informatika unggul → Teknik Informatika, Sistem Informasi, Data Science, Ilmu Komputer, Cyber Security
+- Ekonomi+Matematika unggul → Akuntansi, Manajemen, Ekonomi Pembangunan, Perbankan & Keuangan Digital, Bisnis Digital
+- Bahasa Inggris+Geografi unggul → Hubungan Internasional, Pariwisata & Perhotelan, Sastra Inggris, Penerjemah
+- Sosiologi+Sejarah unggul → Hukum, Administrasi Publik, Psikologi, Pendidikan, Kriminologi
+- Seni Rupa unggul → Desain Komunikasi Visual, Seni Rupa Murni, Desain Interior, Animasi, Arsitektur
+- Fisika+Kimia unggul → Teknik Kimia, Teknik Fisika, Ilmu Material, Geologi, Teknik Lingkungan
+- Geografi+Ekonomi unggul → Perencanaan Wilayah & Kota, Geografi, Kajian Wilayah, Manajemen Sumber Daya Alam
+- PPKn+Sejarah unggul → Ilmu Politik, Administrasi Negara, Hukum, Pendidikan PKn
+- Bahasa Daerah+Sejarah unggul → Sastra Daerah, Antropologi, Pendidikan Bahasa Daerah, Filologi
+- Informatika+Matematika → Teknik Informatika, Sistem Informasi, Data Science, Teknik Telekomunikasi
+- PJOK+Biology → Ilmu Keolahragaan, Fisioterapi, Pendidikan Jasmani, Kesehatan Masyarakat
+- Tren meningkat → jurusan terkait ditekankan. Tren menurun → catat perlu perhatian.
 
-Jika tren nilai suatu mapel MENINGKAT, maka jurusan terkait mapel tersebut lebih ditekankan.
-Jika tren nilai MENURUN, berikan catatan bahwa perlu perhatian khusus.
-
-Jawab dalam Bahasa Indonesia dengan format yang terstruktur dan mudah dipahami.`
-          },
-          {
-            role: 'user',
-            content: `Analisis jurusan perguruan tinggi yang paling cocok untuk siswa berikut:
+Jawab Bahasa Indonesia, format terstruktur.`
+            },
+            {
+              role: 'user',
+              content: `Analisis jurusan PT untuk siswa ini:
 
 Nama: ${siswa.nama}
-NIS: ${siswa.nis}
-NISN: ${siswa.nisn}
-Kelas: ${siswa.rombel.kelas}
-Rombel: ${siswa.rombel.nama}
-Jurusan Rombel: ${siswa.rombel.jurusan}
-Rata-rata Keseluruhan: ${overallAvg.toFixed(1)}
+Kelas: ${siswa.rombel.kelas} | Rombel: ${siswa.rombel.nama} | Jurusan: ${siswa.rombel.jurusan}
+Rata-rata: ${overallAvg.toFixed(1)} | Mapel Terbaik: ${topSubjects} | Perlu Ditingkatkan: ${bottomSubjects}
 
-Detail Nilai Rapor (dengan tren perkembangan):
-${nilaiSummary || 'Belum ada data nilai'}
+Nilai Rapor (tren: ↑naik ↓turun →stabil):
+${nilaiSummary}
 ${tkaSummary}
 
-Berikan analisis dalam format berikut:
+Format jawaban:
 
-## Analisis Kecenderungan Akademik
-- Analisis kecenderungan IPA/IPS berdasarkan nilai, termasuk skor dan tren
+## Kecenderungan Akademik
+Analisis IPA/IPS berdasarkan nilai & tren
 
-## Analisis Tren Perkembangan Nilai
-- Mapel yang nilainya meningkat dan implikasinya
-- Mapel yang nilainya menurun dan langkah perbaikan
-- Mapel yang stabil dan konsistensinya
+## Tren Perkembangan Nilai
+- Meningkat: [mapel & implikasi]
+- Menurun: [mapel & langkah perbaikan]
+- Stabil: [mapel & konsistensi]
 
-## Rekomendasi Jurusan Spesifik (Top 5)
-Untuk setiap jurusan, berikan:
-- Nama Jurusan Spesifik (contoh: Teknik Informatika, Kedokteran, Akuntansi, Sastra Indonesia, dll - BUKAN kategori umum)
-- Skor Kesesuaian (1-100)
-- Alasan kenapa cocok (hubungkan dengan mapel unggulan dan tren)
-- Mata pelajaran unggulan pendukung
-- Mata pelajaran perlu ditingkatkan
-- Prospek karir singkat
+## Rekomendasi Jurusan (Top 7)
+Untuk setiap jurusan:
+- **Nama Jurusan** (Skor 1-100)
+- Alasan cocok (hubungkan mapel unggulan & tren)
+- Mapel pendukung & perlu ditingkatkan
+- Prospek karir
 
-## Analisis TKA (hanya jika ada data TKA)
-- Interpretasi skor TKA, khususnya pilihan, apa indikasinya
-- Kesesuaian pilihan TKA dengan jurusan yang direkomendasikan
+## Analisis TKA (jika ada)
+Interpretasi & kesesuaian dengan rekomendasi
 
 ## Strategi Masuk PTN
-- Rekomendasi PTN dan fakultas dengan peluang realistis
-- Jalur masuk terbaik (SNBP/SNBT/Mandiri)
-- Tips untuk meningkatkan peluang
-
-## Tips Persiapan
-- Mata pelajaran yang perlu difokuskan
-- Langkah konkret yang harus dilakukan
-- Rekomendasi bimbingan tambahan
+- PTN & fakultas realistis
+- Jalur masuk (SNBP/SNBT/Mandiri)
+- Tips meningkatkan peluang
 
 ## Kesimpulan
-- Rangkuman 3 jurusan yang paling cocok dan alasannya
-- Saran motivasi untuk siswa`
-          }
-        ],
-        thinking: { type: 'disabled' }
-      })
+Top 3 jurusan terbaik & saran motivasi`
+            }
+          ],
+          thinking: { type: 'disabled' }
+        }),
+        120000 // 120 second timeout per LLM call
+      )
 
-      const analysis = completion.choices[0]?.message?.content || 'Tidak dapat menghasilkan analisis'
+      const analysis = analysisResult.choices[0]?.message?.content
+
+      if (!analysis || analysis.trim().length < 50) {
+        throw new Error('AI menghasilkan respons kosong. Silakan coba lagi.')
+      }
+
       return analysis
-    }, 3, 2000)
+    }, 2, 2000) // Reduced to 2 retries to avoid extremely long waits
+
+    const totalTime = ((Date.now() - startTime) / 1000).toFixed(1)
+    console.log(`[AI-Analysis] Completed for ${siswa.nama} in ${totalTime}s`)
 
     return NextResponse.json({
       siswaId,
@@ -207,20 +227,23 @@ Untuk setiap jurusan, berikan:
     })
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error'
-    console.error('Analisa jurusan lanjut detail error:', error)
-    
+    const totalTime = ((Date.now() - startTime) / 1000).toFixed(1)
+    console.error(`[AI-Analysis] Error after ${totalTime}s:`, errorMsg)
+
     // Return more specific error message
-    let userMessage = 'Gagal menghasilkan analisis AI'
-    if (errorMsg.includes('timeout') || errorMsg.includes('Timeout')) {
-      userMessage = 'Analisis AI timeout — server membutuhkan waktu terlalu lama. Silakan coba lagi.'
+    let userMessage = 'Gagal menghasilkan analisis AI. Silakan coba lagi.'
+    if (errorMsg.includes('LLM_TIMEOUT')) {
+      userMessage = 'Analisis AI timeout (proses terlalu lama). Silakan coba lagi — jika masih gagal, coba siswa lain.'
     } else if (errorMsg.includes('rate limit') || errorMsg.includes('429')) {
-      userMessage = 'Server AI sedang sibuk — silakan tunggu beberapa saat dan coba lagi.'
-    } else if (errorMsg.includes('network') || errorMsg.includes('ECONNREFUSED')) {
-      userMessage = 'Koneksi ke server AI gagal — periksa koneksi internet dan coba lagi.'
+      userMessage = 'Server AI sedang sibuk. Tunggu 1-2 menit lalu coba lagi.'
+    } else if (errorMsg.includes('network') || errorMsg.includes('ECONNREFUSED') || errorMsg.includes('fetch failed')) {
+      userMessage = 'Koneksi ke server AI gagal. Periksa jaringan dan coba lagi.'
     } else if (errorMsg.includes('All retries failed')) {
-      userMessage = 'Analisis AI gagal setelah beberapa percobaan. Silakan coba lagi dalam beberapa saat.'
+      userMessage = 'Analisis AI gagal setelah beberapa percobaan. Tunggu beberapa saat lalu coba lagi.'
+    } else if (errorMsg.includes('kosong') || errorMsg.includes('empty')) {
+      userMessage = 'AI menghasilkan respons kosong. Silakan coba lagi.'
     }
-    
+
     return NextResponse.json({ error: userMessage, detail: errorMsg }, { status: 500 })
   }
 }
