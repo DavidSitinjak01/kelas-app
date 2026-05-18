@@ -1,37 +1,28 @@
 ---
 Task ID: 1
-Agent: main
-Task: Fix AI analysis failing with red notification + Add more jurusan recommendation mappings
+Agent: Main
+Task: Investigate and fix why Kelas X students are dominantly classified as "Netral" in the Rekomendasi Jurusan (AI) analysis
 
 Work Log:
-- Investigated the AI analysis failure by checking dev logs, testing API endpoints directly
-- Found that the API route was working but LLM calls were taking 2+ minutes causing timeouts
-- Rewrote `/api/analisa-jurusan-lanjut/detail/route.ts` with:
-  - Added explicit LLM call timeout (120s per attempt)
-  - Increased maxDuration to 300s
-  - Reduced retry count from 3 to 2 to avoid extremely long waits
-  - Optimized the prompt to be more concise (shorter system prompt, compressed data format)
-  - Added pre-check for students with no grades (400 error with clear message)
-  - Added logging for analysis start/completion times
-  - Added validation for empty AI responses
-  - Better error messages for timeout, rate limit, network, and empty response errors
-- Updated frontend component (`analisa-jurusan-lanjut-page.tsx`):
-  - Increased frontend timeout from 3 minutes to 5 minutes
-  - Added success toast notification when AI analysis completes
-  - Better error messages for abort timeout
-  - Updated loading progress bar timing (15s instead of 30s before showing)
-  - Added "proses masih berjalan" message after 60s
-  - Validation for empty AI response
-- Expanded jurusan recommendation mappings:
-  - IPA: 10 → 14 categories (added: Gizi & Kesehatan Masyarakat, Bioteknologi & Ilmu Genetik, Teknik Geofisika & Geologi, Ilmu Keolahragaan)
-  - IPS: 10 → 14 categories (added: Kriminologi & Kepolisian, Perencanaan Wilayah & Kota, Ilmu Perpustakaan & Informasi, Desain Komunikasi Visual & Kreatif)
-  - Added specific jurusan entries for all 8 new categories
-  - Expanded TKA pilihan mapping with new categories + added Bahasa Inggris and Bahasa Indonesia mappings
-  - Updated AI prompt with more comprehensive subject→jurusan mapping (17 examples vs 8)
+- Analyzed the classification API at /api/analisa-jurusan/route.ts
+- Found the root cause: the old algorithm used only the IPA-IPS weighted average gap with a ±2 threshold
+- 60% of students (187/315) fell in the Netral zone because the gap distribution was very tight (mean gap = 0.7)
+- All Kelas X students had zero trend data, so trendBonus never helped classification
+- Subject-level analysis revealed clearer patterns: 207 students had more IPA subjects above average, 242 had IPA dominant top-3
+- Implemented V2 Multi-Factor Classification Algorithm with 5 factors:
+  1. Gap Score (20%): Weighted average gap between IPA and IPS
+  2. Dominance Score (30%): How many IPA vs IPS subjects are above student's overall average
+  3. Top-N Score (25%): How many of the top 3 scoring subjects are IPA vs IPS
+  4. Strength Diff Score (15%): Difference between best IPA and best IPS subject
+  5. Trend Score (10%): Semester trend differential
+- Composite score is calculated with adjusted weights, threshold ±0.5 for Netral
+- Netral classification reduced from 59.4% (187 students) to 33.7% (106 students)
+- Remaining Netral students genuinely have conflicting signals between IPA and IPS
+- Updated frontend to show multi-factor analysis visualization in student detail panel
+- Added factorScores to AnalysisResult interface and FactorScores type
 
 Stage Summary:
-- AI analysis is now faster (~104s vs ~144-240s before)
-- More robust error handling with specific error messages
-- 28 total major categories (14 IPA + 14 IPS) with 84+ specific jurusan recommendations
-- Frontend has better UX with success notifications and progress feedback
-- Lint passes, dev server running correctly
+- V2 Multi-Factor Algorithm implemented in /api/analisa-jurusan/route.ts
+- Frontend updated in /components/rekomendasi-jurusan-page.tsx with FactorScores type and multi-factor visualization
+- Netral classification reduced from 59.4% to 33.7%
+- 163 students now classified as IPA (was 89), 46 as IPS (was 39), 106 as Netral (was 187)

@@ -20,6 +20,15 @@ import { useToast } from '@/hooks/use-toast'
 interface SubjectScore { mapel: string; rerata: number; weight: number }
 interface SimpleSubject { mapel: string; rerata: number }
 
+interface FactorScores {
+  gapScore: number
+  dominanceScore: number
+  topNScore: number
+  strengthDiffScore: number
+  trendScore: number
+  compositeScore: number
+}
+
 interface AnalysisStudent {
   siswaId: string; nama: string; nis: string; nisn: string; rombelNama: string
   ipaScore: number; ipsScore: number
@@ -28,6 +37,7 @@ interface AnalysisStudent {
   overallAvg: number; ipaIpsGap: number; consistency: number
   semesterTrend: { ipaTrend: number; ipsTrend: number }
   rekomendasi: string; confidence: number; reasoning: string[]
+  factorScores?: FactorScores
 }
 
 interface Summary {
@@ -770,6 +780,54 @@ export function RekomendasiJurusanPage() {
 
             {/* Reasoning */}
             <div>
+              {/* Multi-Factor Score Visualization */}
+              {selectedStudent.factorScores && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium flex items-center gap-1.5">
+                    <BarChart3 className="h-4 w-4 text-purple-500" />
+                    Analisa Multi-Faktor
+                    <Badge variant="outline" className="text-[10px] ml-1">V2</Badge>
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {/* Composite Score */}
+                    <div className="col-span-1 sm:col-span-2 bg-muted/30 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-semibold">Skor Komposit</span>
+                        <span className={`text-lg font-bold ${selectedStudent.factorScores.compositeScore > 0.8 ? 'text-emerald-600' : selectedStudent.factorScores.compositeScore < -0.8 ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                          {selectedStudent.factorScores.compositeScore > 0 ? '+' : ''}{selectedStudent.factorScores.compositeScore.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex h-3 rounded-full overflow-hidden bg-muted">
+                        <div
+                          className={`h-full rounded-l-full ${selectedStudent.factorScores.compositeScore > 0 ? 'bg-emerald-500' : 'bg-orange-500'}`}
+                          style={{ width: `${Math.min(50, Math.abs(selectedStudent.factorScores.compositeScore) / 5 * 50)}%`, marginLeft: selectedStudent.factorScores.compositeScore < 0 ? `${50 - Math.min(50, Math.abs(selectedStudent.factorScores.compositeScore) / 5 * 50)}%` : '50%' }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
+                        <span>IPS</span>
+                        <span className="text-muted-foreground/50">|</span>
+                        <span>IPA</span>
+                      </div>
+                    </div>
+                    {/* Individual Factors */}
+                    {[
+                      { label: 'Selisih Rata-rata', score: selectedStudent.factorScores.gapScore, icon: '📊' },
+                      { label: 'Dominasi Mapel', score: selectedStudent.factorScores.dominanceScore, icon: '📈' },
+                      { label: 'Top-3 Mapel', score: selectedStudent.factorScores.topNScore, icon: '🏆' },
+                      { label: 'Mapel Terkuat', score: selectedStudent.factorScores.strengthDiffScore, icon: '💪' },
+                      { label: 'Tren Perkembangan', score: selectedStudent.factorScores.trendScore, icon: '📉' },
+                    ].map(f => (
+                      <div key={f.label} className="flex items-center justify-between bg-muted/20 rounded-md px-2.5 py-1.5">
+                        <span className="text-[11px] text-muted-foreground">{f.icon} {f.label}</span>
+                        <span className={`text-xs font-semibold ${f.score > 0.1 ? 'text-emerald-600' : f.score < -0.1 ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                          {f.score > 0 ? '+' : ''}{f.score.toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <p className="text-sm font-medium mb-2 flex items-center gap-1.5">
                 <AlertCircle className="h-4 w-4 text-muted-foreground" />
                 Analisis Detail
