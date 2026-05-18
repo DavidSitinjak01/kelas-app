@@ -10,7 +10,7 @@ import { NextResponse } from 'next/server'
 
 // ---------- SUBJECT-TO-MAJOR MAPPING ----------
 
-// Major categories for IPA track students
+// Major categories for IPA track students (EXPANDED - 10 categories)
 const IPA_MAJOR_WEIGHTS: Record<string, Record<string, number>> = {
   'Teknik & Teknologi': {
     'fisika': 3.5,
@@ -54,9 +54,48 @@ const IPA_MAJOR_WEIGHTS: Record<string, Record<string, number>> = {
     'bahasa inggris': 1.5,
     'bahasa indonesia': 1.0,
   },
+  'Kedokteran Gigi': {
+    'biologi': 3.5,
+    'kimia': 3.0,
+    'fisika': 2.5,
+    'matematika (umum)': 2.0,
+    'bahasa inggris': 1.5,
+    'bahasa indonesia': 1.0,
+  },
+  'Keperawatan & Kebidanan': {
+    'biologi': 3.5,
+    'kimia': 2.5,
+    'bahasa indonesia': 2.0,
+    'bahasa inggris': 1.5,
+    'matematika (umum)': 1.5,
+  },
+  'Arsitektur & Desain': {
+    'fisika': 3.0,
+    'matematika (umum)': 3.0,
+    'matematika tingkat lanjut': 2.5,
+    'seni': 2.0,
+    'informatika': 1.5,
+    'bahasa inggris': 1.0,
+  },
+  'Teknik Informatika & Sistem Informasi': {
+    'informatika': 3.5,
+    'matematika (umum)': 3.0,
+    'matematika tingkat lanjut': 3.0,
+    'fisika': 2.0,
+    'bahasa inggris': 2.0,
+    'bahasa indonesia': 1.0,
+  },
+  'Sastra & Linguistik (IPA)': {
+    'bahasa indonesia': 3.5,
+    'bahasa inggris': 3.5,
+    'sejarah': 1.5,
+    'sosiologi': 1.5,
+    'biologi': 1.0,
+    'matematika (umum)': 1.0,
+  },
 }
 
-// Major categories for IPS track students
+// Major categories for IPS track students (EXPANDED - 10 categories)
 const IPS_MAJOR_WEIGHTS: Record<string, Record<string, number>> = {
   'Ekonomi & Bisnis': {
     'ekonomi': 3.5,
@@ -96,6 +135,153 @@ const IPS_MAJOR_WEIGHTS: Record<string, Record<string, number>> = {
     'bahasa indonesia': 2.0,
     'ekonomi': 1.5,
   },
+  'Sastra Indonesia & Daerah': {
+    'bahasa indonesia': 3.5,
+    'sejarah': 2.5,
+    'sosiologi': 2.0,
+    'antropologi': 2.5,
+    'bahasa inggris': 1.5,
+  },
+  'Pendidikan': {
+    'bahasa indonesia': 3.0,
+    'matematika (umum)': 2.0,
+    'sosiologi': 2.0,
+    'sejarah': 2.0,
+    'bahasa inggris': 1.5,
+    'ekonomi': 1.5,
+  },
+  'Administrasi Publik & Pemerintahan': {
+    'sosiologi': 3.0,
+    'sejarah': 2.5,
+    'ekonomi': 2.5,
+    'bahasa indonesia': 2.0,
+    'geografi': 2.0,
+    'bahasa inggris': 1.5,
+  },
+  'Pariwisata & Perhotelan': {
+    'bahasa inggris': 3.5,
+    'geografi': 3.0,
+    'bahasa indonesia': 2.5,
+    'ekonomi': 2.0,
+    'sejarah': 1.5,
+    'sosiologi': 1.0,
+  },
+  'Akuntansi & Keuangan': {
+    'ekonomi': 3.5,
+    'matematika (umum)': 3.0,
+    'bahasa inggris': 2.0,
+    'bahasa indonesia': 1.5,
+    'sosiologi': 1.0,
+  },
+}
+
+// ---------- SPECIFIC JURUSAN RECOMMENDATIONS PER MAJOR CATEGORY ----------
+// Maps each major category to specific jurusan (study programs) at universities
+const MAJOR_SPECIFIC_JURUSAN: Record<string, { jurusan: string; deskripsi: string; prospek: string }[]> = {
+  'Teknik & Teknologi': [
+    { jurusan: 'Teknik Sipil', deskripsi: 'Merancang dan membangun infrastruktur', prospek: 'Konsultan, kontraktor, BUMN, pemerintah' },
+    { jurusan: 'Teknik Mesin', deskripsi: 'Desain dan manufaktur alat/mesin', prospek: 'Manufaktur, otomotif, energi, pertambangan' },
+    { jurusan: 'Teknik Elektro', deskripsi: 'Sistem kelistrikan dan elektronika', prospek: 'PLN, telekomunikasi, industri elektronik' },
+    { jurusan: 'Teknik Kimia', deskripsi: 'Proses produksi kimia dan material', prospek: 'Pertambangan, farmasi, migas, makanan' },
+    { jurusan: 'Teknik Industri', deskripsi: 'Optimalisasi sistem produksi', prospek: 'Manufaktur, logistik, konsultan manajemen' },
+  ],
+  'Kedokteran & Kesehatan': [
+    { jurusan: 'Pendidikan Dokter (MD)', deskripsi: 'Menjadi dokter umum/spesialis', prospek: 'RS, klinik, praktek pribadi, akademisi' },
+    { jurusan: 'Kesehatan Masyarakat', deskripsi: 'Promosi dan pencegahan penyakit', prospek: 'Dinkes, WHO, NGO kesehatan, RS' },
+    { jurusan: 'Gizi', deskripsi: 'Ilmu nutrisi dan diet', prospek: 'RS, klinik gizi, industri makanan' },
+    { jurusan: 'Kedokteran Hewan', deskripsi: 'Kesehatan hewan dan kesehatan masyarakat veteriner', prospek: 'Praktek hewan, peternakan, karantina' },
+  ],
+  'Farmasi & Kimia Terapan': [
+    { jurusan: 'Farmasi', deskripsi: 'Riset dan produksi obat', prospek: 'Industri farmasi, RS, apotek, BPOM' },
+    { jurusan: 'Kimia', deskripsi: 'Riset dan analisis bahan kimia', prospek: 'Riset, industri, laboratorium, akademisi' },
+    { jurusan: 'Teknologi Farmasi', deskripsi: 'Pengembangan dan produksi sediaan farmasi', prospek: 'Industri farmasi, kosmetik, herbal' },
+  ],
+  'Matematika & Ilmu Komputer': [
+    { jurusan: 'Matematika', deskripsi: 'Teori dan penerapan matematika', prospek: 'Akademisi, riset, data science, finansial' },
+    { jurusan: 'Statistika', deskripsi: 'Analisis data dan probabilitas', prospek: 'BPS, bank, riset pasar, data analyst' },
+    { jurusan: 'Ilmu Komputer', deskripsi: 'Teori komputasi dan algoritma', prospek: 'Software engineer, riset AI, akademisi' },
+    { jurusan: 'Data Science', deskripsi: 'Analisis big data dan machine learning', prospek: 'Tech company, fintech, e-commerce' },
+  ],
+  'Ilmu Alam & Lingkungan': [
+    { jurusan: 'Biologi', deskripsi: 'Studi makhluk hidup dan ekosistem', prospek: 'Riset, konservasi, bioteknologi, akademisi' },
+    { jurusan: 'Ilmu Lingkungan', deskripsi: 'Pengelolaan dan konservasi lingkungan', prospek: 'KLHK, NGO lingkungan, EIA konsultan' },
+    { jurusan: 'Geografi', deskripsi: 'Analisis spasial dan geoinformatika', prospek: 'BPN, pemetaan, GIS, perencanaan wilayah' },
+    { jurusan: 'Geologi', deskripsi: 'Studi bumi dan sumber daya alam', prospek: 'Migas, pertambangan, BMKG, riset' },
+  ],
+  'Kedokteran Gigi': [
+    { jurusan: 'Pendidikan Dokter Gigi', deskripsi: 'Menjadi dokter gigi', prospek: 'RS, klinik gigi, praktek pribadi' },
+    { jurusan: 'Kesehatan Gigi', deskripsi: 'Promosi dan pencegahan kesehatan gigi', prospek: 'Puskesmas, Dinkes, edukasi' },
+  ],
+  'Keperawatan & Kebidanan': [
+    { jurusan: 'Keperawatan', deskripsi: 'Perawatan pasien dan asuhan keperawatan', prospek: 'RS, klinik, home care, pendidik' },
+    { jurusan: 'Kebidanan', deskripsi: 'Pelayanan kesehatan ibu dan bayi', prospek: 'RS, puskesmas, praktek mandiri' },
+  ],
+  'Arsitektur & Desain': [
+    { jurusan: 'Arsitektur', deskripsi: 'Merancang bangunan dan ruang', prospek: 'Konsultan arsitektur, developer, pemerintah' },
+    { jurusan: 'Desain Interior', deskripsi: 'Merancang ruang interior', prospek: 'Desainer interior, developer, hospitality' },
+    { jurusan: 'Desain Komunikasi Visual', deskripsi: 'Desain grafis dan media visual', prospek: 'Agency, media, perusahaan, freelance' },
+    { jurusan: 'Desain Produk', deskripsi: 'Merancang produk inovatif', prospek: 'Manufaktur, tech company, startup' },
+  ],
+  'Teknik Informatika & Sistem Informasi': [
+    { jurusan: 'Teknik Informatika', deskripsi: 'Pengembangan software dan sistem', prospek: 'Software engineer, startup, tech company' },
+    { jurusan: 'Sistem Informasi', deskripsi: 'Manajemen sistem informasi bisnis', prospek: 'IT consultant, business analyst, perusahaan' },
+    { jurusan: 'Teknologi Informasi', deskripsi: 'Infrastruktur dan layanan IT', prospek: 'Network engineer, cloud, cybersecurity' },
+  ],
+  'Sastra & Linguistik (IPA)': [
+    { jurusan: 'Sastra Indonesia', deskripsi: 'Studi sastra dan bahasa Indonesia', prospek: 'Penerbitan, media, pendidikan, akademisi' },
+    { jurusan: 'Sastra Inggris', deskripsi: 'Studi sastra dan bahasa Inggris', prospek: 'Penerjemah, pendidikan, media, diplomasi' },
+    { jurusan: 'Linguistik', deskripsi: 'Ilmu bahasa dan penerjemahan', prospek: 'NLP, penerjemahan, akademisi, tech' },
+  ],
+  'Ekonomi & Bisnis': [
+    { jurusan: 'Manajemen', deskripsi: 'Pengelolaan bisnis dan organisasi', prospek: 'Perusahaan, startup, konsultan, BUMN' },
+    { jurusan: 'Ekonomi Pembangunan', deskripsi: 'Analisis kebijakan ekonomi', prospek: 'Bank Indonesia, Bappenas, riset ekonomi' },
+    { jurusan: 'Bisnis Digital', deskripsi: 'Bisnis berbasis teknologi digital', prospek: 'Startup, e-commerce, fintech' },
+    { jurusan: 'Marketing', deskripsi: 'Strategi pemasaran produk/jasa', prospek: 'Agency, FMCG, tech company' },
+  ],
+  'Hukum': [
+    { jurusan: 'Ilmu Hukum', deskripsi: 'Studi hukum dan peraturan perundang-undangan', prospek: 'Advokat, notaris, hakim, jaksa' },
+    { jurusan: 'Hukum Bisnis', deskripsi: 'Hukum terkait dunia bisnis', prospek: 'Legal counsel, firma hukum, korporasi' },
+  ],
+  'Ilmu Komunikasi': [
+    { jurusan: 'Ilmu Komunikasi', deskripsi: 'Teori dan praktik komunikasi massa', prospek: 'Media, PR, advertising, digital marketing' },
+    { jurusan: 'Jurnalistik', deskripsi: 'Peliputan dan pemberitaan', prospek: 'Media massa, online media, TV, radio' },
+    { jurusan: 'Hubungan Masyarakat', deskripsi: 'Manajemen komunikasi publik', prospek: 'PR agency, korporasi, pemerintah' },
+  ],
+  'Psikologi': [
+    { jurusan: 'Psikologi', deskripsi: 'Studi perilaku dan mental manusia', prospek: 'Klinis, HR, konsultan, pendidikan' },
+    { jurusan: 'Psikologi Klinis', deskripsi: 'Diagnosa dan terapi gangguan mental', prospek: 'RS, klinik psikologi, praktek pribadi' },
+  ],
+  'Hubungan Internasional & Sosial Politik': [
+    { jurusan: 'Hubungan Internasional', deskripsi: 'Diplomasi dan kerjasama internasional', prospek: 'Kemlu, NGO internasional, PBB, MNC' },
+    { jurusan: 'Ilmu Politik', deskripsi: 'Sistem politik dan pemerintahan', prospek: 'Legislatif, partai, think tank, akademisi' },
+    { jurusan: 'Kajian Global', deskripsi: 'Isu-isu global dan lintas negara', prospek: 'Diplomasi, NGO, riset internasional' },
+  ],
+  'Sastra Indonesia & Daerah': [
+    { jurusan: 'Sastra Indonesia', deskripsi: 'Kajian sastra dan budaya Indonesia', prospek: 'Pendidikan, penerbitan, media, kebudayaan' },
+    { jurusan: 'Sastra Daerah', deskripsi: 'Kajian bahasa dan sastra daerah', prospek: 'Pendidikan, kebudayaan, akademisi, pemerintah' },
+    { jurusan: 'Pendidikan Bahasa Indonesia', deskripsi: 'Mengajarkan bahasa Indonesia', prospek: 'Guru, dosen, kurikulum, penerbitan' },
+  ],
+  'Pendidikan': [
+    { jurusan: 'Pendidikan Ekonomi', deskripsi: 'Mengajarkan ilmu ekonomi', prospek: 'Guru, dosen, pendidik, pelatih' },
+    { jurusan: 'Pendidikan Sejarah', deskripsi: 'Mengajarkan ilmu sejarah', prospek: 'Guru, museum, akademisi, wisata edukasi' },
+    { jurusan: 'Pendidikan Sosiologi', deskripsi: 'Mengajarkan ilmu sosiologi', prospek: 'Guru, dosen, peneliti sosial' },
+    { jurusan: 'Manajemen Pendidikan', deskripsi: 'Pengelolaan institusi pendidikan', prospek: 'Kepala sekolah, yayasan, Kemendikbud' },
+  ],
+  'Administrasi Publik & Pemerintahan': [
+    { jurusan: 'Administrasi Publik', deskripsi: 'Manajemen pemerintahan dan publik', prospek: 'PNS, pemerintah daerah, BUMN, NGO' },
+    { jurusan: 'Ilmu Pemerintahan', deskripsi: 'Studi tentang pemerintahan', prospek: 'Kementerian, pemerintah daerah, legislatif' },
+    { jurusan: 'Kebijakan Publik', deskripsi: 'Analisis dan formulasi kebijakan', prospek: 'Think tank, pemerintah, riset, Bappenas' },
+  ],
+  'Pariwisata & Perhotelan': [
+    { jurusan: 'Manajemen Pariwisata', deskripsi: 'Pengelolaan industri wisata', prospek: 'Travel, hotel, Dinas Pariwisata, guide' },
+    { jurusan: 'Perhotelan', deskripsi: 'Manajemen hotel dan akomodasi', prospek: 'Hotel, resort, villa, restoran' },
+    { jurusan: 'Usaha Perjalanan Wisata', deskripsi: 'Manajemen travel dan tur', prospek: 'Travel agent, OTAs, MICE, event' },
+  ],
+  'Akuntansi & Keuangan': [
+    { jurusan: 'Akuntansi', deskripsi: 'Pencatatan dan pelaporan keuangan', prospek: 'KAP, perusahaan, bank, pajak' },
+    { jurusan: 'Keuangan', deskripsi: 'Manajemen keuangan dan investasi', prospek: 'Bank, sekuritas, asuransi, manajer investasi' },
+    { jurusan: 'Perbankan & Keuangan Digital', deskripsi: 'Sistem keuangan dan perbankan digital', prospek: 'Fintech, bank digital, OJK' },
+  ],
 }
 
 // Core IPA / IPS subject weights (for determining IPA vs IPS inclination)
@@ -132,18 +318,18 @@ const EXCLUDED_PATTERNS = [
   'potensi daerah',
 ]
 
-// TKA elective subject to major mapping
+// TKA elective subject to major mapping (EXPANDED)
 const TKA_PILIHAN_MAJOR_MAP: Record<string, { track: 'ipa' | 'ips'; majors: string[]; weight: number }> = {
-  'matematika tingkat lanjut': { track: 'ipa', majors: ['Teknik & Teknologi', 'Matematika & Ilmu Komputer'], weight: 3.0 },
-  'fisika': { track: 'ipa', majors: ['Teknik & Teknologi', 'Ilmu Alam & Lingkungan'], weight: 3.0 },
-  'kimia': { track: 'ipa', majors: ['Farmasi & Kimia Terapan', 'Ilmu Alam & Lingkungan'], weight: 3.0 },
-  'biologi': { track: 'ipa', majors: ['Kedokteran & Kesehatan', 'Ilmu Alam & Lingkungan'], weight: 3.0 },
-  'informatika': { track: 'ipa', majors: ['Matematika & Ilmu Komputer', 'Teknik & Teknologi'], weight: 2.5 },
-  'ekonomi': { track: 'ips', majors: ['Ekonomi & Bisnis'], weight: 3.0 },
-  'geografi': { track: 'ips', majors: ['Hubungan Internasional & Sosial Politik', 'Ilmu Alam & Lingkungan'], weight: 2.5 },
-  'sejarah': { track: 'ips', majors: ['Hukum', 'Hubungan Internasional & Sosial Politik'], weight: 2.5 },
-  'sosiologi': { track: 'ips', majors: ['Psikologi', 'Ilmu Komunikasi', 'Hukum'], weight: 2.5 },
-  'antropologi': { track: 'ips', majors: ['Hukum', 'Hubungan Internasional & Sosial Politik'], weight: 2.0 },
+  'matematika tingkat lanjut': { track: 'ipa', majors: ['Teknik & Teknologi', 'Matematika & Ilmu Komputer', 'Teknik Informatika & Sistem Informasi', 'Arsitektur & Desain'], weight: 3.0 },
+  'fisika': { track: 'ipa', majors: ['Teknik & Teknologi', 'Ilmu Alam & Lingkungan', 'Arsitektur & Desain'], weight: 3.0 },
+  'kimia': { track: 'ipa', majors: ['Farmasi & Kimia Terapan', 'Ilmu Alam & Lingkungan', 'Kedokteran & Kesehatan', 'Kedokteran Gigi'], weight: 3.0 },
+  'biologi': { track: 'ipa', majors: ['Kedokteran & Kesehatan', 'Ilmu Alam & Lingkungan', 'Kedokteran Gigi', 'Keperawatan & Kebidanan', 'Psikologi'], weight: 3.0 },
+  'informatika': { track: 'ipa', majors: ['Matematika & Ilmu Komputer', 'Teknik & Teknologi', 'Teknik Informatika & Sistem Informasi'], weight: 2.5 },
+  'ekonomi': { track: 'ips', majors: ['Ekonomi & Bisnis', 'Akuntansi & Keuangan'], weight: 3.0 },
+  'geografi': { track: 'ips', majors: ['Hubungan Internasional & Sosial Politik', 'Ilmu Alam & Lingkungan', 'Pariwisata & Perhotelan'], weight: 2.5 },
+  'sejarah': { track: 'ips', majors: ['Hukum', 'Hubungan Internasional & Sosial Politik', 'Pendidikan', 'Sastra Indonesia & Daerah'], weight: 2.5 },
+  'sosiologi': { track: 'ips', majors: ['Psikologi', 'Ilmu Komunikasi', 'Hukum', 'Administrasi Publik & Pemerintahan'], weight: 2.5 },
+  'antropologi': { track: 'ips', majors: ['Hukum', 'Hubungan Internasional & Sosial Politik', 'Sastra Indonesia & Daerah'], weight: 2.0 },
 }
 
 // ---------- HELPER FUNCTIONS ----------
@@ -191,6 +377,15 @@ interface MajorScore {
   nama: string
   skor: number
   mapelDetail: { mapel: string; rerata: number; weight: number; contribution: number }[]
+  specificJurusan?: { jurusan: string; deskripsi: string; prospek: string }[]
+  trendAdjustment?: number
+}
+
+interface SubjectTrend {
+  mapel: string
+  trend: number // positive = improving, negative = declining
+  earlyAvg: number
+  lateAvg: number
 }
 
 interface TKAData {
@@ -224,6 +419,8 @@ interface AnalysisResult {
   // Major recommendations
   topMajors: MajorScore[]
   allMajorScores: MajorScore[]
+  // Subject trends per student
+  subjectTrends: SubjectTrend[]
   // TKA data (class 12 only)
   tkaData: TKAData | null
   tkaAdjustedMajors: MajorScore[] | null
@@ -410,7 +607,8 @@ function generateReasoning(
   overallAvg: number,
   consistency: number,
   tkaData: TKAData | null,
-  semesterTrend: { ipaTrend: number; ipsTrend: number }
+  semesterTrend: { ipaTrend: number; ipsTrend: number },
+  subjectTrends?: SubjectTrend[]
 ): string[] {
   const reasons: string[] = []
 
@@ -423,9 +621,13 @@ function generateReasoning(
     reasons.push(`Nilai mapel IPA dan IPS relatif seimbang (${trackInclination.ipa}% vs ${trackInclination.ips}%) — berpotensi di kedua jalur`)
   }
 
-  // Top major recommendation
+  // Top major recommendation with specific jurusan
   if (topMajors.length > 0 && topMajors[0].skor > 0) {
-    reasons.push(`Jurusan paling cocok: ${topMajors[0].nama} (skor ${topMajors[0].skor.toFixed(1)})`)
+    const top1 = topMajors[0]
+    reasons.push(`Jurusan paling cocok: ${top1.nama} (skor ${top1.skor.toFixed(1)})`)
+    if (top1.specificJurusan && top1.specificJurusan.length > 0) {
+      reasons.push(`Program studi spesifik: ${top1.specificJurusan.slice(0, 3).map(j => j.jurusan).join(', ')}`)
+    }
     if (topMajors.length > 1 && topMajors[1].skor > 0) {
       reasons.push(`Alternatif: ${topMajors[1].nama} (skor ${topMajors[1].skor.toFixed(1)})`)
     }
@@ -440,6 +642,19 @@ function generateReasoning(
     const weak = topMajors[0].mapelDetail.filter(s => s.rerata < 60)
     if (weak.length > 0) {
       reasons.push(`Mapel perlu peningkatan: ${weak.map(s => `${s.mapel} (${s.rerata.toFixed(1)})`).join(', ')}`)
+    }
+  }
+
+  // Subject-specific trend analysis
+  if (subjectTrends && subjectTrends.length > 0) {
+    const improving = subjectTrends.filter(t => t.trend > 3).sort((a, b) => b.trend - a.trend)
+    const declining = subjectTrends.filter(t => t.trend < -3).sort((a, b) => a.trend - b.trend)
+
+    if (improving.length > 0) {
+      reasons.push(`Mapel dengan tren meningkat: ${improving.slice(0, 3).map(t => `${t.mapel} (+${t.trend.toFixed(1)})`).join(', ')} — mendukung jurusan terkait`)
+    }
+    if (declining.length > 0) {
+      reasons.push(`Mapel dengan tren menurun: ${declining.slice(0, 3).map(t => `${t.mapel} (${t.trend.toFixed(1)})`).join(', ')} — perlu perhatian khusus`)
     }
   }
 
@@ -667,30 +882,104 @@ export async function GET(request: Request) {
       const ipaMajorScores = calculateMajorScores(sn.nilaiMap, IPA_MAJOR_WEIGHTS)
       const ipsMajorScores = calculateMajorScores(sn.nilaiMap, IPS_MAJOR_WEIGHTS)
 
+      // ====== Calculate per-subject trend ======
+      const subjectTrends: SubjectTrend[] = []
+      for (const nilai of sn.allNilai) {
+        const early: number[] = []
+        const late: number[] = []
+        if (nilai.smt1 > 0) early.push(nilai.smt1)
+        if (nilai.smt2 > 0) early.push(nilai.smt2)
+        if (nilai.smt3 > 0) early.push(nilai.smt3)
+        if (nilai.smt4 > 0) late.push(nilai.smt4)
+        if (nilai.smt5 > 0) late.push(nilai.smt5)
+        if (nilai.smt6 > 0) late.push(nilai.smt6)
+        if (early.length > 0 && late.length > 0) {
+          const earlyAvg = early.reduce((a, b) => a + b, 0) / early.length
+          const lateAvg = late.reduce((a, b) => a + b, 0) / late.length
+          subjectTrends.push({
+            mapel: nilai.mataPelajaran,
+            trend: Math.round((lateAvg - earlyAvg) * 10) / 10,
+            earlyAvg: Math.round(earlyAvg * 10) / 10,
+            lateAvg: Math.round(lateAvg * 10) / 10,
+          })
+        }
+      }
+
+      // ====== Apply trend-based adjustments to major scores ======
+      const applyTrendAdjustments = (majorScores: MajorScore[], subjectTrendData: SubjectTrend[]): MajorScore[] => {
+        const adjusted = majorScores.map(s => ({ ...s, mapelDetail: [...s.mapelDetail] }))
+
+        for (const major of adjusted) {
+          let totalTrendBoost = 0
+          let trendSubjectCount = 0
+
+          for (const detail of major.mapelDetail) {
+            // Find matching trend
+            const matchingTrend = subjectTrendData.find(t => {
+              const lower = normalizeMapel(t.mapel)
+              return lower.includes(detail.mapel) || detail.mapel.includes(lower)
+            })
+
+            if (matchingTrend) {
+              // Positive trend in subjects relevant to this major → boost
+              // Negative trend → penalty
+              const trendFactor = matchingTrend.trend * 0.15 // Scale: each point of improvement = +0.15
+              totalTrendBoost += trendFactor
+              trendSubjectCount++
+            }
+          }
+
+          // Apply average trend adjustment (not raw sum)
+          if (trendSubjectCount > 0) {
+            const avgTrendBoost = totalTrendBoost / trendSubjectCount
+            major.trendAdjustment = Math.round(avgTrendBoost * 10) / 10
+            major.skor = Math.min(100, Math.max(0, major.skor + avgTrendBoost))
+            major.skor = Math.round(major.skor * 10) / 10
+          }
+        }
+
+        return adjusted.sort((a, b) => b.skor - a.skor)
+      }
+
+      const ipaWithTrends = applyTrendAdjustments(ipaMajorScores, subjectTrends)
+      const ipsWithTrends = applyTrendAdjustments(ipsMajorScores, subjectTrends)
+
+      // Attach specific jurusan recommendations
+      const attachSpecificJurusan = (scores: MajorScore[]): MajorScore[] => {
+        return scores.map(s => ({
+          ...s,
+          specificJurusan: MAJOR_SPECIFIC_JURUSAN[s.nama] || [],
+        }))
+      }
+
+      const ipaWithJurusan = attachSpecificJurusan(ipaWithTrends)
+      const ipsWithJurusan = attachSpecificJurusan(ipsWithTrends)
+
       // Combine and rank all majors
       const allMajorScores: MajorScore[] = [
-        ...ipaMajorScores.map(s => ({ ...s })),
-        ...ipsMajorScores.map(s => ({ ...s })),
+        ...ipaWithJurusan.map(s => ({ ...s })),
+        ...ipsWithJurusan.map(s => ({ ...s })),
       ].sort((a, b) => b.skor - a.skor)
 
-      // Top 3 majors
-      const topMajors = allMajorScores.slice(0, 3)
+      // Top 5 majors (expanded from 3)
+      const topMajors = allMajorScores.slice(0, 5)
 
       // Adjust with TKA if available (class 12)
       let tkaAdjustedMajors: MajorScore[] | null = null
       if (hasTKA && tkaData) {
         // Recalculate with TKA adjustments
         const adjustedIpa = adjustMajorScoresWithTKA(
-          ipaMajorScores.map(s => ({ ...s })), tkaData, trackInclination
+          ipaWithJurusan.map(s => ({ ...s, mapelDetail: [...s.mapelDetail] })), tkaData, trackInclination
         )
         const adjustedIps = adjustMajorScoresWithTKA(
-          ipsMajorScores.map(s => ({ ...s })), tkaData, trackInclination
+          ipsWithJurusan.map(s => ({ ...s, mapelDetail: [...s.mapelDetail] })), tkaData, trackInclination
         )
-        tkaAdjustedMajors = [...adjustedIpa, ...adjustedIps].sort((a, b) => b.skor - a.skor)
+        // Re-attach specific jurusan after TKA adjustment
+        tkaAdjustedMajors = attachSpecificJurusan([...adjustedIpa, ...adjustedIps].sort((a, b) => b.skor - a.skor))
       }
 
       // Use TKA-adjusted majors if available, otherwise use base majors
-      const effectiveMajors = tkaAdjustedMajors || allMajorScores
+      const effectiveMajors = (tkaAdjustedMajors || allMajorScores)
 
       // Overall average
       const allScores = Array.from(sn.nilaiMap.values()).filter(v => v > 0)
@@ -739,11 +1028,12 @@ export async function GET(request: Request) {
       // Reasoning
       const reasoning = generateReasoning(
         trackInclination,
-        effectiveMajors.slice(0, 3),
+        effectiveMajors.slice(0, 5),
         overallAvg,
         consistency,
         tkaData,
-        { ipaTrend, ipsTrend }
+        { ipaTrend, ipsTrend },
+        subjectTrends
       )
 
       results.push({
@@ -758,8 +1048,9 @@ export async function GET(request: Request) {
         ipaInclination: trackInclination.ipa,
         ipsInclination: trackInclination.ips,
         dominantTrack: trackInclination.dominant,
-        topMajors: effectiveMajors.slice(0, 3),
+        topMajors: effectiveMajors.slice(0, 5),
         allMajorScores: effectiveMajors,
+        subjectTrends,
         tkaData,
         tkaAdjustedMajors,
         overallAvg: Math.round(overallAvg * 10) / 10,
@@ -840,6 +1131,7 @@ export async function GET(request: Request) {
           subjects: Object.entries(weights).map(([sub, w]) => ({ name: sub, weight: w })),
         })),
       },
+      majorSpecificJurusan: MAJOR_SPECIFIC_JURUSAN,
     })
   } catch (error) {
     console.error('Analisa jurusan lanjut error:', error)

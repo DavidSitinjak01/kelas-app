@@ -104,3 +104,28 @@ Stage Summary:
 - Both Kelas X and XI/XII pages have "Cetak Laporan" button
 - Report opens in new tab for preview, then uses browser print for PDF download
 - All lint checks pass, dev server running normally
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Enhance jurusan recommendation analysis with more specific majors and trend-based scoring
+
+Work Log:
+- Analyzed existing code: analisa-jurusan-lanjut/route.ts (algorithmic), analisa-jurusan-lanjut/detail/route.ts (LLM), analisa-jurusan-lanjut-page.tsx (frontend)
+- Expanded IPA_MAJOR_WEIGHTS from 5 to 10 categories: added Kedokteran Gigi, Keperawatan & Kebidanan, Arsitektur & Desain, Teknik Informatika & Sistem Informasi, Sastra & Linguistik (IPA)
+- Expanded IPS_MAJOR_WEIGHTS from 5 to 10 categories: added Sastra Indonesia & Daerah, Pendidikan, Administrasi Publik & Pemerintahan, Pariwisata & Perhotelan, Akuntansi & Keuangan
+- Added MAJOR_SPECIFIC_JURUSAN mapping: 20 major categories mapped to 50+ specific study programs (prodi) with descriptions and career prospects
+- Added SubjectTrend interface and per-subject trend calculation (early vs late semester averages)
+- Implemented trend-based scoring adjustment: subjects with improving trends boost related majors, declining trends penalize
+- Updated TKA elective mapping to include new major categories
+- Enhanced generateReasoning() with specific jurusan names and per-subject trend analysis
+- Updated AI prompt in detail route: added trend data per subject, subject-to-jurusan mapping examples, expanded to Top 5, added "Analisis Tren Perkembangan Nilai" section
+- Updated frontend: types for specificJurusan/trendAdjustment/subjectTrends, Top 3→Top 5 display, added specific prodi badges, trend adjustment badges, subject trends section, report PDF includes trend table
+- All lint checks pass, dev server running without errors
+
+Stage Summary:
+- 20 major categories (10 IPA + 10 IPS) with 50+ specific program recommendations
+- Per-subject trend analysis (early→late semester comparison)
+- Trend-based scoring adjustment for more accurate recommendations
+- Examples: Bahasa Indonesia→Sastra Indonesia, MTK/Bio/Kim→Kedokteran, etc.
+- API returns: topMajors (5), specificJurusan per major, subjectTrends per student, trendAdjustment per major

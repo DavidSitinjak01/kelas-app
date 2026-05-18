@@ -59,11 +59,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Siswa tidak ditemukan' }, { status: 404 })
     }
 
-    // Prepare data summary - simplified to reduce token count
+    // Prepare data summary - include semester data for trend analysis
     const nilaiSummary = siswa.nilai
       .filter(n => n.rerata > 0)
       .sort((a, b) => b.rerata - a.rerata)
-      .map(n => `${n.mataPelajaran}: ${n.rerata.toFixed(1)}`)
+      .map(n => {
+        const sems = [n.smt1, n.smt2, n.smt3, n.smt4, n.smt5, n.smt6].filter(v => v > 0)
+        const trend = sems.length >= 2
+          ? (() => {
+              const firstHalf = [n.smt1, n.smt2, n.smt3].filter(v => v > 0)
+              const secondHalf = [n.smt4, n.smt5, n.smt6].filter(v => v > 0)
+              if (firstHalf.length === 0 || secondHalf.length === 0) return 'stabil'
+              const avgFirst = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length
+              const avgSecond = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length
+              const diff = avgSecond - avgFirst
+              if (diff > 3) return `meningkat (+${diff.toFixed(1)})`
+              if (diff < -3) return `menurun (${diff.toFixed(1)})`
+              return 'stabil'
+            })()
+          : 'data kurang'
+
+        return `${n.mataPelajaran}: ${n.rerata.toFixed(1)} [tren: ${trend}]`
+      })
       .join('\n')
 
     const overallAvg = siswa.nilai.filter(n => n.rerata > 0).length > 0
@@ -97,10 +114,25 @@ Data TKA (Tes Kompetensi Akademik):
 Analisis harus mempertimbangkan:
 1. Kecenderungan akademik (IPA/IPS) berdasarkan nilai rapor
 2. Mata pelajaran unggulan dan yang perlu ditingkatkan
-3. Tren perkembangan nilai (meningkat/menurun)
-4. Nilai TKA (jika ada) sebagai indikator kompetensi dan minat
-5. Mata pelajaran pilihan TKA sebagai indikator arah minat
-6. Peluang masuk perguruan tinggi melalui jalur SNBP, SNBT, dan mandiri
+3. Tren perkembangan nilai per mata pelajaran (meningkat/menurun/stabil)
+4. Pengaruh tren perkembangan nilai terhadap rekomendasi jurusan
+5. Nilai TKA (jika ada) sebagai indikator kompetensi dan minat
+6. Mata pelajaran pilihan TKA sebagai indikator arah minat
+7. Peluang masuk perguruan tinggi melalui jalur SNBP, SNBT, dan mandiri
+
+PENTING: Berikan rekomendasi jurusan yang SPESIFIK, bukan hanya kategori umum.
+Contoh pemetaan mapel ke jurusan spesifik:
+- Bahasa Indonesia unggul → Sastra Indonesia, Pendidikan Bahasa Indonesia, Ilmu Komunikasi, Jurnalistik
+- Matematika + Fisika unggul → Teknik Sipil, Teknik Mesin, Teknik Elektro, Arsitektur
+- Biologi + Kimia unggul → Kedokteran, Farmasi, Kedokteran Gigi, Keperawatan, Gizi
+- Matematika + Informatika unggul → Teknik Informatika, Sistem Informasi, Data Science, Ilmu Komputer
+- Ekonomi + Matematika unggul → Akuntansi, Manajemen, Ekonomi Pembangunan, Perbankan & Keuangan Digital
+- Bahasa Inggris + Geografi unggul → Hubungan Internasional, Pariwisata & Perhotelan, Sastra Inggris
+- Sosiologi + Sejarah unggul → Hukum, Administrasi Publik, Psikologi, Pendidikan
+- Bahasa Indonesia + Sejarah + Antropologi → Sastra Indonesia & Daerah, Ilmu Komunikasi, Pendidikan Bahasa Indonesia
+
+Jika tren nilai suatu mapel MENINGKAT, maka jurusan terkait mapel tersebut lebih ditekankan.
+Jika tren nilai MENURUN, berikan catatan bahwa perlu perhatian khusus.
 
 Jawab dalam Bahasa Indonesia dengan format yang terstruktur dan mudah dipahami.`
           },
@@ -116,7 +148,7 @@ Rombel: ${siswa.rombel.nama}
 Jurusan Rombel: ${siswa.rombel.jurusan}
 Rata-rata Keseluruhan: ${overallAvg.toFixed(1)}
 
-Detail Nilai Rapor:
+Detail Nilai Rapor (dengan tren perkembangan):
 ${nilaiSummary || 'Belum ada data nilai'}
 ${tkaSummary}
 
@@ -125,26 +157,36 @@ Berikan analisis dalam format berikut:
 ## Analisis Kecenderungan Akademik
 - Analisis kecenderungan IPA/IPS berdasarkan nilai, termasuk skor dan tren
 
-## Rekomendasi Jurusan (Top 3)
+## Analisis Tren Perkembangan Nilai
+- Mapel yang nilainya meningkat dan implikasinya
+- Mapel yang nilainya menurun dan langkah perbaikan
+- Mapel yang stabil dan konsistensinya
+
+## Rekomendasi Jurusan Spesifik (Top 5)
 Untuk setiap jurusan, berikan:
-- Nama Jurusan (contoh: Teknik Sipil, Kedokteran, Akuntansi, dll)
+- Nama Jurusan Spesifik (contoh: Teknik Informatika, Kedokteran, Akuntansi, Sastra Indonesia, dll - BUKAN kategori umum)
 - Skor Kesesuaian (1-100)
-- Alasan kenapa cocok
-- Mata pelajaran unggulan dan perlu ditingkatkan
+- Alasan kenapa cocok (hubungkan dengan mapel unggulan dan tren)
+- Mata pelajaran unggulan pendukung
+- Mata pelajaran perlu ditingkatkan
+- Prospek karir singkat
 
 ## Analisis TKA (hanya jika ada data TKA)
 - Interpretasi skor TKA, khususnya pilihan, apa indikasinya
+- Kesesuaian pilihan TKA dengan jurusan yang direkomendasikan
 
 ## Strategi Masuk PTN
 - Rekomendasi PTN dan fakultas dengan peluang realistis
 - Jalur masuk terbaik (SNBP/SNBT/Mandiri)
+- Tips untuk meningkatkan peluang
 
 ## Tips Persiapan
 - Mata pelajaran yang perlu difokuskan
 - Langkah konkret yang harus dilakukan
+- Rekomendasi bimbingan tambahan
 
 ## Kesimpulan
-- Rangkuman jurusan yang paling cocok dan alasannya
+- Rangkuman 3 jurusan yang paling cocok dan alasannya
 - Saran motivasi untuk siswa`
           }
         ],

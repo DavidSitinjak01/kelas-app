@@ -30,6 +30,15 @@ interface MajorScore {
   nama: string
   skor: number
   mapelDetail: { mapel: string; rerata: number; weight: number; contribution: number }[]
+  specificJurusan?: { jurusan: string; deskripsi: string; prospek: string }[]
+  trendAdjustment?: number
+}
+
+interface SubjectTrend {
+  mapel: string
+  trend: number
+  earlyAvg: number
+  lateAvg: number
 }
 
 interface TKAData {
@@ -48,6 +57,7 @@ interface AnalysisResult {
   dominantTrack: 'IPA' | 'IPS' | 'Seimbang'
   topMajors: MajorScore[]
   allMajorScores: MajorScore[]
+  subjectTrends: SubjectTrend[]
   tkaData: TKAData | null
   tkaAdjustedMajors: MajorScore[] | null
   overallAvg: number; consistency: number
@@ -268,12 +278,13 @@ export function AnalisaJurusanLanjutPage() {
     const now = new Date()
     const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 
-    const topMajorsHTML = student.topMajors.map((m, i) => `
+    const topMajorsHTML = student.topMajors.slice(0, 5).map((m, i) => `
       <tr>
         <td style="text-align:center;font-weight:bold;padding:8px;border:1px solid #ddd;">${i + 1}</td>
         <td style="padding:8px;border:1px solid #ddd;font-weight:${i === 0 ? 'bold' : 'normal'};">${m.nama}</td>
-        <td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;color:${m.skor >= 85 ? '#059669' : m.skor >= 75 ? '#16a34a' : m.skor >= 60 ? '#d97706' : '#dc2626'};">${m.skor.toFixed(1)}</td>
+        <td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;color:${m.skor >= 85 ? '#059669' : m.skor >= 75 ? '#16a34a' : m.skor >= 60 ? '#d97706' : '#dc2626'};">${m.skor.toFixed(1)}${m.trendAdjustment && Math.abs(m.trendAdjustment) > 0.1 ? (m.trendAdjustment > 0 ? ` (+${m.trendAdjustment.toFixed(1)} tren)` : ` (${m.trendAdjustment.toFixed(1)} tren)`) : ''}</td>
         <td style="padding:8px;border:1px solid #ddd;font-size:11px;">${m.mapelDetail.slice(0, 4).map(d => `${d.mapel} (${d.rerata.toFixed(1)})`).join(', ')}</td>
+        <td style="padding:8px;border:1px solid #ddd;font-size:11px;">${m.specificJurusan ? m.specificJurusan.slice(0, 3).map(j => j.jurusan).join(', ') : '-'}</td>
       </tr>
     `).join('')
 
@@ -413,20 +424,47 @@ export function AnalisaJurusanLanjutPage() {
       </div>
     </div>
 
-    <h2>Top 3 Jurusan Rekomendasi${student.tkaAdjustedMajors ? ' <span style="font-size:11px;background:#f3e8ff;color:#7c3aed;padding:2px 8px;border-radius:10px;">Disesuaikan TKA</span>' : ''}</h2>
+    <h2>Top 5 Jurusan Rekomendasi${student.tkaAdjustedMajors ? ' <span style="font-size:11px;background:#f3e8ff;color:#7c3aed;padding:2px 8px;border-radius:10px;">Disesuaikan TKA</span>' : ''}</h2>
     <table style="font-size:13px;">
       <thead>
         <tr style="background:#f9fafb;">
           <th style="padding:8px;border:1px solid #ddd;width:40px;text-align:center;">#</th>
-          <th style="padding:8px;border:1px solid #ddd;">Jurusan</th>
+          <th style="padding:8px;border:1px solid #ddd;">Kategori Jurusan</th>
           <th style="padding:8px;border:1px solid #ddd;width:80px;text-align:center;">Skor</th>
           <th style="padding:8px;border:1px solid #ddd;">Mapel Pendukung</th>
+          <th style="padding:8px;border:1px solid #ddd;">Program Studi</th>
         </tr>
       </thead>
       <tbody>
         ${topMajorsHTML}
       </tbody>
     </table>
+
+    ${student.subjectTrends && student.subjectTrends.length > 0 ? `
+    <h2>Tren Perkembangan Nilai</h2>
+    <table style="font-size:12px;">
+      <thead>
+        <tr style="background:#f9fafb;">
+          <th style="padding:6px;border:1px solid #ddd;text-align:left;">Mata Pelajaran</th>
+          <th style="padding:6px;border:1px solid #ddd;text-align:center;">Rata-rata Awal</th>
+          <th style="padding:6px;border:1px solid #ddd;text-align:center;">Rata-rata Akhir</th>
+          <th style="padding:6px;border:1px solid #ddd;text-align:center;">Perubahan</th>
+          <th style="padding:6px;border:1px solid #ddd;text-align:center;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${student.subjectTrends.sort((a, b) => b.trend - a.trend).map(st => `
+          <tr>
+            <td style="padding:6px;border:1px solid #ddd;">${st.mapel}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:center;">${st.earlyAvg.toFixed(1)}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:center;">${st.lateAvg.toFixed(1)}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:center;color:${st.trend > 0 ? '#059669' : st.trend < 0 ? '#dc2626' : '#6b7280'};font-weight:bold;">${st.trend > 0 ? '+' : ''}${st.trend.toFixed(1)}</td>
+            <td style="padding:6px;border:1px solid #ddd;text-align:center;">${st.trend > 2 ? '↑ Meningkat' : st.trend < -2 ? '↓ Menurun' : '→ Stabil'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    ` : ''}
 
     ${tkaHTML}
 
@@ -690,6 +728,8 @@ export function AnalisaJurusanLanjutPage() {
                     <TableHead className="text-center">Jurusan #1</TableHead>
                     <TableHead className="text-center hidden md:table-cell">Jurusan #2</TableHead>
                     <TableHead className="text-center hidden lg:table-cell">Jurusan #3</TableHead>
+                    <TableHead className="text-center hidden xl:table-cell">Jurusan #4</TableHead>
+                    <TableHead className="text-center hidden xl:table-cell">Jurusan #5</TableHead>
                     <TableHead className="text-center">Akurasi</TableHead>
                     <TableHead className="w-20 text-center">Detail</TableHead>
                   </TableRow>
@@ -699,6 +739,8 @@ export function AnalisaJurusanLanjutPage() {
                     const top1 = s.topMajors[0]
                     const top2 = s.topMajors[1]
                     const top3 = s.topMajors[2]
+                    const top4 = s.topMajors[3]
+                    const top5 = s.topMajors[4]
                     const isSelected = selectedStudent?.siswaId === s.siswaId
                     return (
                       <TableRow
@@ -747,6 +789,26 @@ export function AnalisaJurusanLanjutPage() {
                             <div>
                               <p className="text-xs truncate max-w-[120px]">{top3.nama}</p>
                               <p className={`text-[11px] ${scoreColor(top3.skor)}`}>{top3.skor.toFixed(1)}</p>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center hidden xl:table-cell">
+                          {top4 && top4.skor > 0 ? (
+                            <div>
+                              <p className="text-xs truncate max-w-[120px]">{top4.nama}</p>
+                              <p className={`text-[11px] ${scoreColor(top4.skor)}`}>{top4.skor.toFixed(1)}</p>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center hidden xl:table-cell">
+                          {top5 && top5.skor > 0 ? (
+                            <div>
+                              <p className="text-xs truncate max-w-[120px]">{top5.nama}</p>
+                              <p className={`text-[11px] ${scoreColor(top5.skor)}`}>{top5.skor.toFixed(1)}</p>
                             </div>
                           ) : (
                             <span className="text-[11px] text-muted-foreground">-</span>
@@ -941,53 +1003,72 @@ export function AnalisaJurusanLanjutPage() {
 
                 <Separator />
 
-                {/* Top 3 Major Cards */}
+                {/* Top 5 Major Cards */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium flex items-center gap-1.5">
                     <GraduationCap className="h-4 w-4 text-emerald-600" />
-                    Top 3 Jurusan Rekomendasi
+                    Top 5 Jurusan Rekomendasi
                     {selectedStudent.tkaAdjustedMajors && (
                       <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100 text-[10px] ml-1">
                         <Zap className="h-2.5 w-2.5 mr-0.5" /> Disesuaikan TKA
                       </Badge>
                     )}
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {selectedStudent.topMajors.map((major, idx) => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {selectedStudent.topMajors.slice(0, 5).map((major, idx) => (
                       <motion.div
                         key={major.nama}
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.2, delay: idx * 0.1 }}
+                        transition={{ duration: 0.2, delay: idx * 0.08 }}
                       >
                         <Card className={`relative overflow-hidden ${
                           idx === 0 ? 'border-emerald-300 bg-emerald-50/30 dark:bg-emerald-950/5' :
-                          idx === 1 ? 'border-amber-200' : 'border-slate-200'
+                          idx === 1 ? 'border-green-200 bg-green-50/20' :
+                          idx === 2 ? 'border-amber-200' : 'border-slate-200'
                         }`}>
-                          {idx === 0 && (
-                            <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">
-                              #1
+                          {idx < 3 && (
+                            <div className={`absolute top-0 right-0 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg ${
+                              idx === 0 ? 'bg-emerald-500' : idx === 1 ? 'bg-green-500' : 'bg-amber-500'
+                            }`}>
+                              #{idx + 1}
                             </div>
                           )}
                           <CardContent className="p-3">
-                            <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center justify-between mb-1.5">
                               <p className="text-xs font-semibold truncate pr-6">{major.nama}</p>
                               <span className={`text-sm font-bold ${scoreColor(major.skor)}`}>
                                 {major.skor.toFixed(1)}
                               </span>
                             </div>
+                            {/* Trend adjustment badge */}
+                            {major.trendAdjustment && Math.abs(major.trendAdjustment) > 0.1 && (
+                              <div className="flex items-center gap-1 mb-1.5">
+                                {major.trendAdjustment > 0 ? (
+                                  <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 text-[9px] py-0 px-1.5">
+                                    <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
+                                    +{major.trendAdjustment.toFixed(1)} tren
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-red-50 text-red-700 hover:bg-red-50 text-[9px] py-0 px-1.5">
+                                    <TrendingDown className="h-2.5 w-2.5 mr-0.5" />
+                                    {major.trendAdjustment.toFixed(1)} tren
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
                             {/* Score bar */}
                             <div className="h-2 bg-muted rounded-full overflow-hidden mb-2">
                               <motion.div
                                 className={`h-full ${scoreBgColor(major.skor)} rounded-full`}
                                 initial={{ width: 0 }}
                                 animate={{ width: `${Math.max(major.skor, 2)}%` }}
-                                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                                transition={{ duration: 0.5, delay: idx * 0.08 }}
                               />
                             </div>
                             {/* Subject breakdown */}
                             {major.mapelDetail.length > 0 && (
-                              <div className="space-y-1">
+                              <div className="space-y-0.5">
                                 {major.mapelDetail.slice(0, 4).map(detail => (
                                   <div key={detail.mapel} className="flex items-center justify-between text-[11px]">
                                     <span className="text-muted-foreground truncate">{detail.mapel}</span>
@@ -1004,12 +1085,63 @@ export function AnalisaJurusanLanjutPage() {
                                 )}
                               </div>
                             )}
+                            {/* Specific Jurusan */}
+                            {major.specificJurusan && major.specificJurusan.length > 0 && (
+                              <div className="mt-2 pt-2 border-t border-dashed border-slate-200">
+                                <p className="text-[10px] text-muted-foreground mb-1">Program Studi:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {major.specificJurusan.slice(0, 3).map(j => (
+                                    <Badge key={j.jurusan} variant="outline" className="text-[9px] py-0 px-1.5 border-emerald-200 text-emerald-700">
+                                      {j.jurusan}
+                                    </Badge>
+                                  ))}
+                                  {major.specificJurusan.length > 3 && (
+                                    <Badge variant="outline" className="text-[9px] py-0 px-1.5">
+                                      +{major.specificJurusan.length - 3}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       </motion.div>
                     ))}
                   </div>
                 </div>
+
+                {/* Subject Trends Section */}
+                {selectedStudent.subjectTrends && selectedStudent.subjectTrends.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium flex items-center gap-1.5">
+                        <TrendingUp className="h-4 w-4 text-emerald-600" />
+                        Tren Perkembangan Nilai
+                      </p>
+                      <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                        {selectedStudent.subjectTrends
+                          .sort((a, b) => b.trend - a.trend)
+                          .map(st => (
+                          <div key={st.mapel} className="flex items-center justify-between text-xs bg-muted/30 rounded-md px-2.5 py-1.5">
+                            <span className="font-medium truncate mr-2">{st.mapel}</span>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="text-muted-foreground text-[10px]">
+                                {st.earlyAvg.toFixed(1)} → {st.lateAvg.toFixed(1)}
+                              </span>
+                              <span className={`font-semibold flex items-center gap-0.5 ${
+                                st.trend > 2 ? 'text-emerald-600' : st.trend < -2 ? 'text-red-600' : 'text-muted-foreground'
+                              }`}>
+                                {trendIcon(st.trend)}
+                                {st.trend > 0 ? '+' : ''}{st.trend.toFixed(1)}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* TKA Data Section (Class 12 only) */}
                 {kelas === 12 && selectedStudent.tkaData && (
