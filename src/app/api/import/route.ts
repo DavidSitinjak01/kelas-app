@@ -8,22 +8,56 @@ export const maxDuration = 300 // 5 minutes timeout
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const filePath = body.filePath as string
-    const clearExisting = body.clearExisting as boolean | undefined
+    let filePath: string | null = null
+    let clearExisting = false
+    let fileBuffer: Buffer
 
-    if (!filePath) {
-      return NextResponse.json({ error: 'filePath diperlukan' }, { status: 400 })
-    }
+    const contentType = request.headers.get('content-type') || ''
 
-    const fullPath = path.join(process.cwd(), 'upload', filePath)
+    if (contentType.includes('multipart/form-data')) {
+      // Mode 1: FormData with file directly
+      const formData = await request.formData()
+      const file = formData.get('file') as File | null
+      clearExisting = formData.get('clearExisting') === 'true'
+      filePath = formData.get('filePath') as string | null
 
-    if (!fs.existsSync(fullPath)) {
-      return NextResponse.json({ error: 'File tidak ditemukan' }, { status: 404 })
+      if (file) {
+        fileBuffer = Buffer.from(await file.arrayBuffer())
+        // Also save to upload dir for reference
+        const uploadDir = path.join(process.cwd(), 'upload')
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true })
+        const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+        const savedName = `${Date.now()}_${sanitizedName}`
+        fs.writeFileSync(path.join(uploadDir, savedName), fileBuffer)
+      } else if (filePath) {
+        // Use existing server file
+        const fullPath = path.join(process.cwd(), 'upload', filePath)
+        if (!fs.existsSync(fullPath)) {
+          return NextResponse.json({ error: 'File tidak ditemukan' }, { status: 404 })
+        }
+        fileBuffer = fs.readFileSync(fullPath)
+      } else {
+        return NextResponse.json({ error: 'File atau filePath diperlukan' }, { status: 400 })
+      }
+    } else {
+      // Mode 2: JSON with filePath (backward compatible)
+      const body = await request.json()
+      filePath = body.filePath as string
+      clearExisting = body.clearExisting as boolean | undefined
+
+      if (!filePath) {
+        return NextResponse.json({ error: 'filePath diperlukan' }, { status: 400 })
+      }
+
+      const fullPath = path.join(process.cwd(), 'upload', filePath)
+      if (!fs.existsSync(fullPath)) {
+        return NextResponse.json({ error: 'File tidak ditemukan' }, { status: 404 })
+      }
+      fileBuffer = fs.readFileSync(fullPath)
     }
 
     // Read Excel file
-    const fileBuffer = fs.readFileSync(fullPath)
+
     const workbook = XLSX.read(fileBuffer, { type: 'buffer' })
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]

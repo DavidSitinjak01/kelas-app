@@ -41,3 +41,33 @@ Stage Summary:
 - TKA import for XII Lasara and XII Rai is working - data is complete
 - No zero/missing values found in TKA records
 - Previous import issue appears to have been resolved
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix import nilai rapor (leger) - "gagal impor" notification
+
+Work Log:
+- Identified root cause: `/api/upload` endpoint was missing (returning 404)
+- Dev logs showed: `POST /api/upload 404` and "Failed to find Server Action" errors
+- The import flow was: upload file → get filePath → send filePath to import endpoint
+- But the upload endpoint was never created, so the entire import chain failed
+- Created `/api/upload/route.ts` - handles file upload to `upload/` directory
+- Created `/api/upload/list/route.ts` - lists Excel files on server for siswa import
+- Upgraded `/api/import-leger/route.ts` to accept FormData directly (one-step import)
+- Upgraded `/api/import/route.ts` (siswa import) to accept FormData directly
+- Updated `nilai-page.tsx` handleImport: sends files directly via FormData to /api/import-leger
+- Updated `siswa-page.tsx` handleImport: sends file directly via FormData to /api/import
+- Kept backward compatibility: both JSON and FormData modes work
+- Tested end-to-end:
+  - Upload endpoint: returns filePath successfully
+  - Import Leger (X Baluse): 36 siswa, 576 nilai, 0 errors
+  - Import Leger (XII Baluse): 36 siswa, 707 nilai, 0 errors
+  - Upload list: returns 7 Excel files
+
+Stage Summary:
+- Root cause: missing `/api/upload` API endpoint
+- Fix: Created upload endpoints + upgraded import endpoints to accept FormData
+- Import leger now works as one-step process (no separate upload needed)
+- All existing import functionality preserved (backward compatible)
+- Import tested successfully with real Excel files

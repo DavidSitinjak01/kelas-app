@@ -8,11 +8,48 @@ export const maxDuration = 300
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const filePaths = body.filePaths as string[]
-    const clearExisting = body.clearExisting as boolean | undefined
+    let filePaths: string[] = []
+    let clearExisting = false
 
-    if (!filePaths || filePaths.length === 0) {
+    // Support two modes:
+    // 1. FormData with files directly (preferred - no separate upload needed)
+    // 2. JSON with filePaths (backward compatible with old flow)
+    const contentType = request.headers.get('content-type') || ''
+
+    if (contentType.includes('multipart/form-data')) {
+      // Mode 1: FormData with files
+      const formData = await request.formData()
+      const files = formData.getAll('files') as File[]
+      clearExisting = formData.get('clearExisting') === 'true'
+
+      if (files.length === 0) {
+        return NextResponse.json({ error: 'Pilih file terlebih dahulu' }, { status: 400 })
+      }
+
+      // Save uploaded files to disk
+      const uploadDir = path.join(process.cwd(), 'upload')
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true })
+      }
+
+      for (const file of files) {
+        const timestamp = Date.now()
+        const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+        const fileName = `${timestamp}_${sanitizedName}`
+        const fullPath = path.join(uploadDir, fileName)
+
+        const buffer = Buffer.from(await file.arrayBuffer())
+        fs.writeFileSync(fullPath, buffer)
+        filePaths.push(fileName)
+      }
+    } else {
+      // Mode 2: JSON with filePaths (backward compatible)
+      const body = await request.json()
+      filePaths = body.filePaths as string[]
+      clearExisting = body.clearExisting as boolean | undefined
+    }
+
+    if (filePaths.length === 0) {
       return NextResponse.json({ error: 'filePaths diperlukan' }, { status: 400 })
     }
 
@@ -23,7 +60,6 @@ export async function POST(request: Request) {
     const subjectSet = new Set<string>()
 
     // Phase 1: Parse all Excel files and collect siswa IDs
-    // We need to know all siswa IDs first so we can scope the delete properly
     const siswaIdsToReplace: string[] = []
     const parsedRows: {
       siswaId: string
@@ -138,9 +174,7 @@ export async function POST(request: Request) {
     }
 
     // Phase 2: If clearExisting, only delete nilai for the siswa being imported
-    // This prevents other classes' grades from being wiped out
     if (clearExisting && siswaIdsToReplace.length > 0) {
-      // Delete in batches to avoid SQLite variable limit
       const batchSize = 500
       const uniqueSiswaIds = [...new Set(siswaIdsToReplace)]
       for (let i = 0; i < uniqueSiswaIds.length; i += batchSize) {

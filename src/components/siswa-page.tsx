@@ -156,35 +156,25 @@ export function SiswaPage() {
     setImportResult(null)
 
     try {
-      let filePath = selectedServerFile
+      const formData = new FormData()
 
-      // If user selected a local file, upload it first
       if (selectedFile && !selectedServerFile) {
-        const formData = new FormData()
+        // User selected a local file - send directly
         formData.append('file', selectedFile)
-
-        const uploadRes = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        })
-
-        if (!uploadRes.ok) {
-          throw new Error('Gagal mengupload file')
-        }
-
-        const uploadData = await uploadRes.json()
-        filePath = uploadData.filePath
-      }
-
-      if (!filePath) {
+      } else if (selectedServerFile) {
+        // User selected a server file - send filePath
+        formData.append('filePath', selectedServerFile)
+      } else {
         throw new Error('Pilih file terlebih dahulu')
       }
 
-      // Then import
+      if (clearExisting) {
+        formData.append('clearExisting', 'true')
+      }
+
       const importRes = await fetch('/api/import', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath, clearExisting }),
+        body: formData,
       })
 
       const result = await importRes.json()

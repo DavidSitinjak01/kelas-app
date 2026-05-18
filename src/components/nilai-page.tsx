@@ -443,31 +443,22 @@ export function NilaiPage() {
     setImportResult(null)
 
     try {
-      // Upload files first, then import
-      const uploadedPaths: string[] = []
-
-      for (const file of selectedFiles) {
-        const formData = new FormData()
-        formData.append('file', file)
-
-        const uploadRes = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        })
-
-        if (!uploadRes.ok) throw new Error('Gagal mengupload file')
-        const uploadData = await uploadRes.json()
-        uploadedPaths.push(uploadData.filePath)
+      if (selectedFiles.length === 0) {
+        throw new Error('Pilih file terlebih dahulu')
       }
 
-      if (uploadedPaths.length === 0) {
-        throw new Error('Pilih file terlebih dahulu')
+      // Send files directly via FormData to import-leger (one-step, no separate upload)
+      const formData = new FormData()
+      for (const file of selectedFiles) {
+        formData.append('files', file)
+      }
+      if (clearExisting) {
+        formData.append('clearExisting', 'true')
       }
 
       const importRes = await fetch('/api/import-leger', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePaths: uploadedPaths, clearExisting }),
+        body: formData,
       })
 
       const result = await importRes.json()
@@ -525,9 +516,13 @@ export function NilaiPage() {
           })
         }
       } else {
-        // PDF import (existing logic)
-        const uploadedPaths: string[] = []
+        // PDF import - upload PDFs first, then process
+        if (tkaSelectedFiles.length === 0) {
+          throw new Error('Pilih file PDF terlebih dahulu')
+        }
 
+        // Upload PDFs via /api/upload
+        const uploadedPaths: string[] = []
         for (const file of tkaSelectedFiles) {
           const formData = new FormData()
           formData.append('file', file)
@@ -537,13 +532,9 @@ export function NilaiPage() {
             body: formData,
           })
 
-          if (!uploadRes.ok) throw new Error('Gagal mengupload file')
+          if (!uploadRes.ok) throw new Error('Gagal mengupload file PDF')
           const uploadData = await uploadRes.json()
           uploadedPaths.push(uploadData.filePath)
-        }
-
-        if (uploadedPaths.length === 0) {
-          throw new Error('Pilih file PDF terlebih dahulu')
         }
 
         const importRes = await fetch('/api/import-tka', {
