@@ -2,15 +2,21 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  /* config options here */
   typescript: {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
   allowedDevOrigins: [
-    ".space-z.ai",
+    "*.space-z.ai",
     "localhost",
+    "127.0.0.1",
   ],
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      'recharts',
+    ],
+  },
 };
 
 export default nextConfig;
