@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
@@ -13,6 +13,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#059669",
+};
+
 export const metadata: Metadata = {
   title: "Kelas App - Manajemen Kelas",
   description: "Aplikasi manajemen kelas untuk guru dan wali kelas. Kelola rombel, data siswa, nilai, eligible, dan rekomendasi jurusan/PT.",
@@ -20,7 +27,9 @@ export const metadata: Metadata = {
   authors: [{ name: "Kelas App" }],
   icons: {
     icon: "/logo.svg",
+    apple: "/logo.svg",
   },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -29,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="id">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
