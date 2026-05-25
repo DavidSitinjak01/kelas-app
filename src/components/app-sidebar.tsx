@@ -10,6 +10,8 @@ import {
   Compass,
   Target,
   Building2,
+  Settings,
+  LogOut,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -22,8 +24,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
+  SidebarSeparator,
 } from '@/components/ui/sidebar'
 import { useAppStore, type PageKey } from '@/store/app-store'
+import { useAuthStore } from '@/store/auth-store'
 
 const menuItems: { key: PageKey; label: string; icon: React.ElementType }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -37,8 +41,18 @@ const menuItems: { key: PageKey; label: string; icon: React.ElementType }[] = [
   { key: 'rekomendasi-pt', label: 'Rekomendasi PT', icon: Building2 },
 ]
 
+const settingItems: { key: PageKey; label: string; icon: React.ElementType }[] = [
+  { key: 'pengaturan', label: 'Pengaturan', icon: Settings },
+]
+
 export function AppSidebar() {
   const { activePage, setActivePage } = useAppStore()
+  const { user, logout } = useAuthStore()
+
+  const handleLogout = () => {
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
+    logout()
+  }
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
@@ -73,15 +87,43 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        <SidebarSeparator />
+        <SidebarGroup>
+          <SidebarGroupLabel>Pengaturan</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {settingItems.map((item) => (
+                <SidebarMenuItem key={item.key}>
+                  <SidebarMenuButton
+                    isActive={activePage === item.key}
+                    onClick={() => setActivePage(item.key)}
+                    tooltip={item.label}
+                  >
+                    <item.icon className="size-4" />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="p-4">
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-          <div className="h-7 w-7 rounded-full bg-sidebar-accent flex items-center justify-center">
-            <GraduationCap className="size-4 text-sidebar-accent-foreground" />
-          </div>
+          <button
+            onClick={handleLogout}
+            className="h-7 w-7 rounded-full bg-sidebar-accent flex items-center justify-center hover:bg-red-100 dark:hover:bg-red-950 transition-colors"
+          >
+            <LogOut className="size-4 text-sidebar-accent-foreground" />
+          </button>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="text-xs font-medium text-sidebar-foreground">Guru / Wali Kelas</span>
-            <span className="text-xs text-sidebar-foreground/50">Semester 2024/2025</span>
+            <span className="text-xs font-medium text-sidebar-foreground">{user?.username || 'Admin'}</span>
+            <button
+              onClick={handleLogout}
+              className="text-xs text-sidebar-foreground/50 hover:text-red-500 transition-colors text-left"
+            >
+              Keluar
+            </button>
           </div>
         </div>
       </SidebarFooter>

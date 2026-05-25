@@ -1,134 +1,134 @@
-# Worklog - Data Migration Agent
+# Work Log — Task 1: Create Admin Table in Supabase
 
-**Task ID:** 2  
-**Date:** 2026-03-05  
-**Agent:** Data Migration Agent
+**Task ID:** 1
+**Date:** 2026-03-06
+**Agent:** General Purpose Agent
 
 ---
 
 ## Summary
 
-Exported data from SQLite database (`db/custom.db`) and generated PostgreSQL-compatible INSERT SQL files for Supabase migration.
+Attempted to create the `admin` table in Supabase PostgreSQL and insert a default admin user. Due to Supabase Supavisor pooler connectivity issues (tenant not found error), the table could not be created remotely from the sandbox. SQL migration file and helper script were created as alternatives.
 
-## Steps Completed
+## Steps Attempted
 
-### 1. Database Structure Analysis
-- Examined SQLite database with `better-sqlite3`
-- Verified Prisma schema column mappings (camelCase → lowercase)
-- Confirmed record counts: 23 Rombel, 818 Siswa, 14220 Nilai, 13 Eligible, 176 TKA
+### 1. REST API Insert (Failed — expected)
+- Attempted `POST /rest/v1/admin` to insert a record
+- Result: `PGRST205 — Could not find the table 'public.admin' in the schema cache`
+- This was expected — PostgREST doesn't support DDL (CREATE TABLE)
 
-### 2. Migration Script Created
-- Created `generate-sql-migration.js` at project root
-- Handles column name mapping (e.g., `tahunAjaran` → `tahunajaran`)
-- Escapes single quotes in strings (replace `'` with `''`)
-- Converts timestamps from milliseconds to PostgreSQL `to_timestamp(ms/1000)` format
-- Uses multi-row INSERT statements for efficiency (batches of ~500 rows per INSERT)
-- Splits Nilai table (14220 records) into 10 files of ~1500 records each
+### 2. Supabase Management API SQL Endpoint (Failed)
+- Tried `POST https://api.supabase.com/v1/projects/{ref}/database/query`
+- Result: `JWT could not be decoded` — the service role key is not a JWT personal access token
+- The Management API requires a `sbp_...` format personal access token from the dashboard
 
-### 3. SQL Files Generated in `/home/z/my-project/sql-migration/`
+### 3. Direct PostgreSQL Connection via `pg` Module (Failed)
+- Tried multiple connection configurations:
+  - Pooler transaction mode (port 6543) with `postgres.gybmzmxeknsbypthdvwr` user
+  - Pooler session mode (port 5432)
+  - Direct DB hostname `db.gybmzmxeknsbypthdvwr.supabase.co` (IPv6 only, not reachable from sandbox)
+  - Multiple pooler IPs (54.255.219.82, 52.74.252.201, 52.77.146.31)
+  - Various SSL configurations (rejectUnauthorized, servername, etc.)
+  - Different username formats (postgres, gybmzmxeknsbypthdvwr, etc.)
+- **All attempts returned**: `(ENOTFOUND) tenant/user postgres.gybmzmxeknsbypthdvwr not found (SQLSTATE XX000)`
+- The Supabase Supavisor pooler cannot find this project's tenant
+- REST API works fine (verified: `GET /rest/v1/rombel` returns data)
+- This is a **Supabase-side configuration issue** — the project's pooler routing may be misconfigured
 
-| File | Records | Size |
-|------|---------|------|
-| `01_rombel.sql` | 23 | 2.9 KB |
-| `02_siswa.sql` | 818 | 153.5 KB |
-| `03_nilai_part1.sql` | 1,500 | 223.2 KB |
-| `03_nilai_part2.sql` | 1,500 | 223.4 KB |
-| `03_nilai_part3.sql` | 1,500 | 223.3 KB |
-| `03_nilai_part4.sql` | 1,500 | 225.2 KB |
-| `03_nilai_part5.sql` | 1,500 | 226.4 KB |
-| `03_nilai_part6.sql` | 1,500 | 226.1 KB |
-| `03_nilai_part7.sql` | 1,500 | 225.6 KB |
-| `03_nilai_part8.sql` | 1,500 | 230.0 KB |
-| `03_nilai_part9.sql` | 1,500 | 230.4 KB |
-| `03_nilai_part10.sql` | 720 | 111.0 KB |
-| `04_eligible.sql` | 13 | 2.3 KB |
-| `05_tka.sql` | 176 | 50.2 KB |
+### 4. Supabase CLI (Failed)
+- `supabase db query --db-url` — same pooler error
+- `supabase link` — requires personal access token (`sbp_...` format)
+- `supabase db push` — same pooler connection error
 
-**Total: 15,250 records across 14 files**
+## Files Created
 
-### 4. SQL Format Details
-- Table and column names use lowercase mapped names (per Prisma `@@map` and `@map` directives)
-- Timestamps use `to_timestamp(ms/1000)` for PostgreSQL compatibility
-- Single quotes in string values properly escaped (e.g., `BU''ULOLO`, `GE''E`)
-- Multi-row INSERT with ~500 rows per INSERT statement
-- Files ordered correctly: Rombel → Siswa → Nilai → Eligible → TKA (respects FK dependencies)
+### `/home/z/my-project/sql-migration/00_admin.sql`
+SQL migration file to create the admin table, disable RLS, and insert default admin user:
 
-### 5. Execution Order for Supabase SQL Editor
-1. Run `01_rombel.sql` first (no FK dependencies)
-2. Run `02_siswa.sql` (depends on Rombel)
-3. Run `03_nilai_part1.sql` through `03_nilai_part10.sql` (depends on Siswa)
-4. Run `04_eligible.sql` (depends on Siswa)
-5. Run `05_tka.sql` (depends on Siswa)
-
-## Notes
-- Existing `migration-sql/` directory from prior work used camelCase column names — these new files in `sql-migration/` use the correct lowercase mapped column names
-- Nilai files are split to stay under Supabase SQL Editor limits (~1500 records per file)
-- Each Nilai file contains 3 INSERT statements (500 rows each), except part10 which has 2
-
----
-
-# Worklog - Supabase REST API Database Client
-
-**Task ID:** 5  
-**Date:** 2026-05-25  
-**Agent:** Full-stack Developer
-
-## Summary
-
-Created a Supabase REST API client (`/src/lib/supabase-db.ts`) that mimics the Prisma Client interface, enabling the application to work in environments where direct PostgreSQL connections (ports 5432/6543) are blocked. The client uses PostgREST over HTTPS (port 443) to perform all database operations.
-
-## Problem
-The Next.js app used Prisma Client to connect to Supabase PostgreSQL directly. In this sandbox, direct PostgreSQL connections are blocked, so all API routes were failing with connection errors. The app showed only a "Z" logo with no data.
-
-## Solution
-Built a Supabase REST API client that provides the same Prisma-like interface (`db.rombel.findMany()`, `db.siswa.create()`, etc.) but communicates with Supabase via its PostgREST REST API over HTTPS.
-
-## Steps Completed
-
-### 1. Created `/src/lib/supabase-db.ts` (~550 lines)
-
-**SupabaseModel class** with full Prisma-compatible API:
-- `findMany`, `findFirst`, `findUnique`, `count`
-- `create`, `createMany`, `update`, `delete`, `deleteMany`
-- `upsert`, `aggregate`, `groupBy`
-
-**Key features implemented:**
-- Where clause → PostgREST filter conversion (eq, neq, ilike, in, gt, lt, gte, lte, or)
-- Include/select → PostgREST select parameter (`*,rombel(*)`, `siswa(*,rombel(*))`)
-- Relation filters with `!inner` joins (`?select=*,rombel!inner(*)&rombel.kelas=eq.12`)
-- `_count` include via PostgREST count aggregation
-- `orderBy` support (both array and object syntax, nested sorting in JS)
-- `aggregate`/`groupBy` computed in JavaScript
-- `upsert` implemented as find + create/update
-- Auto `updatedat` timestamp on create/update
-
-**Model configuration** for all 5 tables with relations and unique constraints.
-
-### 2. Modified `/src/lib/db.ts`
-Replaced Prisma Client with Supabase REST API client:
-```typescript
-import { createSupabaseDB } from './supabase-db'
-export const db = createSupabaseDB()
+```sql
+CREATE TABLE IF NOT EXISTS admin (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL,
+  createdat TIMESTAMPTZ DEFAULT now(),
+  updatedat TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE admin DISABLE ROW LEVEL SECURITY;
+INSERT INTO admin (id, username, password) VALUES ('admin1', 'admin', 'admin123') ON CONFLICT (id) DO NOTHING;
 ```
 
-### 3. Bug fixes
-- Fixed `orderBy` to support both Prisma array and object syntax
-- Fixed ESLint warnings
+### `/home/z/my-project/create-admin-table.js`
+Node.js script that can be run from an environment with direct database access to create the admin table.
 
-## Test Results
+## Existing Configuration (Already Done)
 
-| API | Status | Key Details |
-|-----|--------|-------------|
-| `/api/dashboard` | ✅ | Returns totalRombel:23, totalSiswa:818, totalNilai:14220, totalEligible:13, rataRataNilai:81.434 |
-| `/api/rombel` | ✅ | 23 rombels with `_count.siswa` working |
-| `/api/siswa?limit=3` | ✅ | Paginated results with `rombel` include |
-| `/api/eligible` | ✅ | Nested `siswa → rombel` include |
-| `/api/tka` | ✅ | Nested `siswa → rombel` include with relation filter |
+The admin model is already configured in `/home/z/my-project/src/lib/supabase-db.ts`:
+- `admin: { tableName: 'admin', uniqueFields: ['id', 'username'], uniqueConstraints: {}, relations: {} }`
+- `admin: new SupabaseModel('admin')` in the `createSupabaseDB()` return object
 
-## Files Changed
-- **NEW**: `src/lib/supabase-db.ts`
-- **MODIFIED**: `src/lib/db.ts`
+## Action Required
 
-## Notes
-- The dev server may experience memory pressure in the sandbox; `run-dev.sh` auto-restarts it
-- `aggregate` and `groupBy` methods compute in JS; could be optimized with Supabase RPC functions later
+**The user must manually run the SQL in `sql-migration/00_admin.sql` via the Supabase SQL Editor:**
+1. Go to https://supabase.com/dashboard/project/gybmzmxeknsbypthdvwr/sql
+2. Paste the contents of `sql-migration/00_admin.sql`
+3. Click "Run"
+
+After the table is created, the existing REST API client (`supabase-db.ts`) will immediately be able to interact with the `admin` table.
+
+---
+
+# Work Log — Task 2: Authentication API Routes
+
+## Summary
+Created authentication API routes for the Kelas App using the custom Supabase REST API client.
+
+## Changes Made
+
+### 1. Updated `/home/z/my-project/src/lib/supabase-db.ts`
+- Added `admin` model to the `MODELS` configuration object with:
+  - `tableName: 'admin'`
+  - `uniqueFields: ['id', 'username']`
+  - `uniqueConstraints: {}`
+  - `relations: {}`
+- Added `admin: new SupabaseModel('admin')` to the `createSupabaseDB()` return object
+
+### 2. Created `/home/z/my-project/src/app/api/auth/login/route.ts`
+- POST endpoint for admin login
+- Validates username and password are provided
+- Finds admin by username via `db.admin.findMany`
+- Compares plaintext password (to be hashed later)
+- Sets `admin-session` httpOnly cookie with 7-day expiry
+- Returns user object on success
+
+### 3. Created `/home/z/my-project/src/app/api/auth/me/route.ts`
+- GET endpoint to check current authentication status
+- Reads `admin-session` cookie and returns parsed user data
+- Returns 401 if not authenticated
+
+### 4. Created `/home/z/my-project/src/app/api/auth/logout/route.ts`
+- POST endpoint to logout
+- Deletes `admin-session` cookie
+- Returns success response
+
+### 5. Created `/home/z/my-project/src/app/api/auth/settings/route.ts`
+- PUT endpoint for changing username and/or password
+- Requires authentication via session cookie
+- Verifies current password before allowing password change
+- Checks username uniqueness before allowing username change
+- Updates session cookie if username is changed
+
+### 6. Created `/home/z/my-project/src/store/auth-store.ts`
+- Zustand store for client-side auth state management
+- Tracks `user`, `isLoading`, and `isAuthenticated` states
+- Provides `setUser`, `setLoading`, and `logout` actions
+- `logout` action calls the logout API and clears local state
+
+## Files Modified
+- `src/lib/supabase-db.ts` (added admin model)
+
+## Files Created
+- `src/app/api/auth/login/route.ts`
+- `src/app/api/auth/me/route.ts`
+- `src/app/api/auth/logout/route.ts`
+- `src/app/api/auth/settings/route.ts`
+- `src/store/auth-store.ts`

@@ -10,6 +10,7 @@ export type PageKey =
   | 'rekomendasi-jurusan'
   | 'analisa-jurusan-lanjut'
   | 'rekomendasi-pt'
+  | 'pengaturan'
 
 interface AppState {
   activePage: PageKey

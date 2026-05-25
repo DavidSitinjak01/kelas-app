@@ -70,6 +70,12 @@ const MODELS: Record<string, ModelConfig> = {
       siswa: { table: 'siswa', foreignKey: 'siswaid', isList: false },
     },
   },
+  admin: {
+    tableName: 'admin',
+    uniqueFields: ['id', 'username'],
+    uniqueConstraints: {},
+    relations: {},
+  },
 }
 
 // ============================================================
@@ -780,5 +786,6 @@ export function createSupabaseDB() {
     eligible: new SupabaseModel('eligible'),
     // Prisma generates `tKA` (lowercase t + uppercase KA) from model TKA
     tKA: new SupabaseModel('tka'),
+    admin: new SupabaseModel('admin'),
   }
 }

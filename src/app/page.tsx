@@ -1,8 +1,10 @@
 'use client'
 
+import { useEffect } from 'react'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useAppStore } from '@/store/app-store'
+import { useAuthStore } from '@/store/auth-store'
 import { DashboardPage } from '@/components/dashboard-page'
 import { RombelPage } from '@/components/rombel-page'
 import { SiswaPage } from '@/components/siswa-page'
@@ -12,7 +14,10 @@ import { AnalisaPage } from '@/components/analisa-page'
 import { RekomendasiJurusanPage } from '@/components/rekomendasi-jurusan-page'
 import { RekomendasiPtPage } from '@/components/rekomendasi-pt-page'
 import { AnalisaJurusanLanjutPage } from '@/components/analisa-jurusan-lanjut-page'
+import { SettingsPage } from '@/components/settings-page'
+import { LoginPage } from '@/components/login-page'
 import { Separator } from '@/components/ui/separator'
+import { Loader2 } from 'lucide-react'
 
 const pageTitles: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -24,11 +29,42 @@ const pageTitles: Record<string, string> = {
   'rekomendasi-jurusan': 'Rekomendasi Jurusan',
   'analisa-jurusan-lanjut': 'Analisa Jurusan Lanjut',
   'rekomendasi-pt': 'Rekomendasi Perguruan Tinggi',
+  pengaturan: 'Pengaturan',
 }
 
 export default function Home() {
   const { activePage } = useAppStore()
+  const { isAuthenticated, isLoading, setUser } = useAuthStore()
 
+  useEffect(() => {
+    // Check if user is already logged in
+    fetch('/api/auth/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          setUser(data.user)
+        } else {
+          setUser(null)
+        }
+      })
+      .catch(() => setUser(null))
+  }, [setUser])
+
+  // Loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-emerald-600" />
+      </div>
+    )
+  }
+
+  // Not authenticated - show login
+  if (!isAuthenticated) {
+    return <LoginPage />
+  }
+
+  // Authenticated - show main app
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard': return <DashboardPage />
@@ -40,6 +76,7 @@ export default function Home() {
       case 'rekomendasi-jurusan': return <RekomendasiJurusanPage />
       case 'analisa-jurusan-lanjut': return <AnalisaJurusanLanjutPage />
       case 'rekomendasi-pt': return <RekomendasiPtPage />
+      case 'pengaturan': return <SettingsPage />
       default: return <DashboardPage />
     }
   }
