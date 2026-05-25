@@ -39,7 +39,8 @@ export function LoginPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error || 'Login gagal')
+        const errorDetail = data.detail ? `${data.error} (${data.detail})` : (data.error || 'Login gagal')
+        setError(errorDetail)
         return
       }
 
