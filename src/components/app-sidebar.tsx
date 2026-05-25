@@ -29,6 +29,7 @@ import {
   SidebarMenuItem,
   SidebarFooter,
   SidebarSeparator,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import { useAppStore, type PageKey } from '@/store/app-store'
 import { useAuthStore } from '@/store/auth-store'
@@ -53,6 +54,7 @@ export function AppSidebar() {
   const { activePage, setActivePage } = useAppStore()
   const { user, logout } = useAuthStore()
   const { namasekolah, logopath, loadSettings } = useSettingsStore()
+  const { isMobile, setOpenMobile } = useSidebar()
 
   useEffect(() => {
     loadSettings()
@@ -62,7 +64,16 @@ export function AppSidebar() {
     logout()
   }
 
+  // Close mobile sidebar when navigating to a page
+  const handleNavigate = (page: PageKey) => {
+    setActivePage(page)
+    if (isMobile) {
+      setOpenMobile(false)
+    }
+  }
+
   const handleShareFormNilai = () => {
+    if (isMobile) setOpenMobile(false)
     const url = `${window.location.origin}/form-nilai`
     if (navigator.share) {
       navigator.share({
@@ -80,6 +91,7 @@ export function AppSidebar() {
   }
 
   const handleOpenFormNilai = () => {
+    if (isMobile) setOpenMobile(false)
     window.open('/form-nilai', '_blank')
   }
 
@@ -109,7 +121,7 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton
                     isActive={activePage === item.key}
-                    onClick={() => setActivePage(item.key)}
+                    onClick={() => handleNavigate(item.key)}
                     tooltip={item.label}
                   >
                     <item.icon className="size-4" />
@@ -155,7 +167,7 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton
                     isActive={activePage === item.key}
-                    onClick={() => setActivePage(item.key)}
+                    onClick={() => handleNavigate(item.key)}
                     tooltip={item.label}
                   >
                     <item.icon className="size-4" />
