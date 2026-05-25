@@ -76,6 +76,12 @@ const MODELS: Record<string, ModelConfig> = {
     uniqueConstraints: {},
     relations: {},
   },
+  settings: {
+    tableName: 'settings',
+    uniqueFields: ['id'],
+    uniqueConstraints: {},
+    relations: {},
+  },
 }
 
 // ============================================================
@@ -788,5 +794,6 @@ export function createSupabaseDB() {
     // Prisma generates `tKA` (lowercase t + uppercase KA) from model TKA
     tKA: new SupabaseModel('tka'),
     admin: new SupabaseModel('admin'),
+    settings: new SupabaseModel('settings'),
   }
 }

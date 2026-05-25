@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import {
   LayoutDashboard,
   Users,
@@ -15,6 +16,7 @@ import {
   Share2,
   ExternalLink,
 } from 'lucide-react'
+import { useSettingsStore } from '@/store/settings-store'
 import {
   Sidebar,
   SidebarContent,
@@ -50,6 +52,11 @@ const settingItems: { key: PageKey; label: string; icon: React.ElementType }[] =
 export function AppSidebar() {
   const { activePage, setActivePage } = useAppStore()
   const { user, logout } = useAuthStore()
+  const { namasekolah, logopath, loadSettings } = useSettingsStore()
+
+  useEffect(() => {
+    loadSettings()
+  }, [loadSettings])
 
   const handleLogout = () => {
     logout()
@@ -59,7 +66,7 @@ export function AppSidebar() {
     const url = `${window.location.origin}/form-nilai`
     if (navigator.share) {
       navigator.share({
-        title: 'Form Isi Nilai - Kelas App',
+        title: `Form Isi Nilai - ${namasekolah}`,
         text: 'Silakan isi nilai mata pelajaran melalui link berikut:',
         url,
       }).catch(() => {})
@@ -80,11 +87,15 @@ export function AppSidebar() {
     <Sidebar variant="sidebar" collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-bold text-sm">
-            K
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-bold text-sm overflow-hidden">
+            {logopath ? (
+              <img src={logopath} alt={namasekolah} className="size-5 rounded object-contain" />
+            ) : (
+              namasekolah.charAt(0)
+            )}
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-semibold text-sidebar-foreground">Kelas App</span>
+            <span className="text-sm font-semibold text-sidebar-foreground">{namasekolah}</span>
             <span className="text-xs text-sidebar-foreground/60">Manajemen Kelas</span>
           </div>
         </div>

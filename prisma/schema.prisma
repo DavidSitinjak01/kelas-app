@@ -107,3 +107,15 @@ model Admin {
 
   @@map("admin")
 }
+
+model Settings {
+  id            String   @id @default("default")
+  namasekolah   String   @default("Kelas App") @map("namasekolah")
+  logopath      String   @default("") @map("logopath")
+  logodata      String   @default("") @map("logodata")
+  logomimetype  String   @default("") @map("logomimetype")
+  createdat     DateTime @default(now()) @map("createdat")
+  updatedat     DateTime @updatedAt @map("updatedat")
+
+  @@map("settings")
+}

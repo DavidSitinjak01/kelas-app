@@ -11,6 +11,44 @@ export async function GET() {
     try {
       const admins = await db.admin.findMany({ take: 1 })
       if (admins && admins.length > 0) {
+        // Also try to ensure settings row exists
+        try {
+          await db.settings.findFirst({ where: { id: 'default' } })
+        } catch {
+          // Settings table might not exist - that's OK, return SQL
+          return NextResponse.json({
+            status: 'table_missing',
+            message: 'Settings table does not exist. Please run the SQL in Supabase SQL Editor.',
+            sql: `-- =============================================
+-- Kelas App: Settings Table Setup
+-- Run this in Supabase SQL Editor
+-- =============================================
+
+-- Create settings table for app configuration (school name, logo)
+CREATE TABLE IF NOT EXISTS settings (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  namasekolah TEXT DEFAULT 'Kelas App',
+  logopath TEXT DEFAULT '',
+  logodata TEXT DEFAULT '',
+  logomimetype TEXT DEFAULT '',
+  createdat TIMESTAMPTZ DEFAULT now(),
+  updatedat TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
+
+-- Insert default settings row
+INSERT INTO settings (id, namasekolah, logopath, logodata, logomimetype)
+VALUES ('default', 'Kelas App', '', '', '')
+ON CONFLICT (id) DO NOTHING;
+
+-- Add new columns if table already exists
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS logodata TEXT NOT NULL DEFAULT '';
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS logomimetype TEXT NOT NULL DEFAULT '';
+`,
+          }, { status: 503 })
+        }
+
         return NextResponse.json({
           status: 'already_setup',
           message: 'Admin table already exists with at least one user',
@@ -77,6 +115,28 @@ ON CONFLICT (id) DO NOTHING;
 -- 2. Add NIK column to siswa table for student login
 -- (NISN = username, NIK = password)
 ALTER TABLE siswa ADD COLUMN IF NOT EXISTS nik TEXT NOT NULL DEFAULT '-';
+
+-- 3. Create settings table for app configuration (school name, logo)
+CREATE TABLE IF NOT EXISTS settings (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  namasekolah TEXT DEFAULT 'Kelas App',
+  logopath TEXT DEFAULT '',
+  logodata TEXT DEFAULT '',
+  logomimetype TEXT DEFAULT '',
+  createdat TIMESTAMPTZ DEFAULT now(),
+  updatedat TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
+
+-- Insert default settings row
+INSERT INTO settings (id, namasekolah, logopath, logodata, logomimetype)
+VALUES ('default', 'Kelas App', '', '', '')
+ON CONFLICT (id) DO NOTHING;
+
+-- Add new columns if table already exists
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS logodata TEXT NOT NULL DEFAULT '';
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS logomimetype TEXT NOT NULL DEFAULT '';
 `,
         }, { status: 503 })
       }

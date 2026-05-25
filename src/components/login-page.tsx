@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Eye, EyeOff, GraduationCap, Loader2, BookOpen } from 'lucide-react'
 import { useAuthStore } from '@/store/auth-store'
+import { useSettingsStore } from '@/store/settings-store'
 import { useToast } from '@/hooks/use-toast'
 import Link from 'next/link'
 
@@ -18,6 +19,11 @@ export function LoginPage() {
   const [error, setError] = useState('')
   const { setUser } = useAuthStore()
   const { toast } = useToast()
+  const { namasekolah, logopath, loadSettings } = useSettingsStore()
+
+  useEffect(() => {
+    loadSettings()
+  }, [loadSettings])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,10 +56,14 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-gray-950 dark:to-gray-900 p-4">
       <Card className="w-full max-w-md shadow-xl border-0">
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-600 text-white font-bold text-2xl shadow-lg">
-            <GraduationCap className="size-8" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-600 text-white font-bold text-2xl shadow-lg overflow-hidden">
+            {logopath ? (
+              <img src={logopath} alt={namasekolah} className="size-8 object-contain" />
+            ) : (
+              <GraduationCap className="size-8" />
+            )}
           </div>
-          <h1 className="text-2xl font-bold">Kelas App</h1>
+          <h1 className="text-2xl font-bold">{namasekolah}</h1>
           <p className="text-sm text-muted-foreground">Manajemen Kelas</p>
         </CardHeader>
         <CardContent>
@@ -116,7 +126,7 @@ export function LoginPage() {
               </Button>
             </Link>
             <p className="text-center text-xs text-muted-foreground">
-              © 2025 Kelas App
+              © 2025 {namasekolah}
             </p>
           </div>
         </CardContent>

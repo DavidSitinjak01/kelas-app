@@ -26,10 +26,21 @@ export const metadata: Metadata = {
   keywords: ["kelas", "manajemen", "siswa", "nilai", "pendidikan"],
   authors: [{ name: "Kelas App" }],
   icons: {
-    icon: "/logo.svg",
-    apple: "/logo.svg",
+    icon: [
+      { url: "/api/logo?size=32", sizes: "32x32", type: "image/png" },
+      { url: "/api/logo?size=192", sizes: "192x192", type: "image/png" },
+      { url: "/logo.svg", sizes: "any", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/api/logo?size=180", sizes: "180x180", type: "image/png" },
+    ],
   },
-  manifest: "/manifest.json",
+  manifest: "/api/manifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Kelas App",
+  },
 };
 
 export default function RootLayout({
@@ -39,6 +50,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id">
+      <head>
+        <link rel="apple-touch-icon" href="/api/logo?size=180" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="application-name" content="Kelas App" />
+        <meta name="apple-mobile-web-app-title" content="Kelas App" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >

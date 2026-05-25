@@ -22,6 +22,7 @@ import {
   FileText,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { useSettingsStore } from '@/store/settings-store'
 
 interface StudentInfo {
   id: string
@@ -68,9 +69,11 @@ export default function FormNilaiPage() {
   const [saveSuccess, setSaveSuccess] = useState(false)
 
   const { toast } = useToast()
+  const { namasekolah, logopath, loadSettings } = useSettingsStore()
 
   // On page load/refresh: clear any existing session and show login
   useEffect(() => {
+    loadSettings()
     const clearSession = async () => {
       try {
         await fetch('/api/public/student-logout', { method: 'POST' })
@@ -80,7 +83,7 @@ export default function FormNilaiPage() {
       setIsCheckingSession(false)
     }
     clearSession()
-  }, [])
+  }, [loadSettings])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -308,11 +311,15 @@ export default function FormNilaiPage() {
       <header className="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white">
-              <GraduationCap className="size-5" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white overflow-hidden">
+              {logopath ? (
+                <img src={logopath} alt={namasekolah} className="size-5 object-contain" />
+              ) : (
+                <GraduationCap className="size-5" />
+              )}
             </div>
             <div>
-              <h1 className="text-lg font-bold leading-tight">Kelas App</h1>
+              <h1 className="text-lg font-bold leading-tight">{namasekolah}</h1>
               <p className="text-xs text-muted-foreground">Form Isi Nilai Siswa</p>
             </div>
           </div>
@@ -690,7 +697,7 @@ export default function FormNilaiPage() {
       {/* Footer */}
       <footer className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-t">
         <div className="max-w-4xl mx-auto px-4 py-2 text-center text-xs text-muted-foreground">
-          © 2025 Kelas App — Form Isi Nilai Siswa
+          © 2025 {namasekolah} — Form Isi Nilai Siswa
         </div>
       </footer>
     </div>
