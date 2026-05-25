@@ -2,6 +2,8 @@ import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
+type AnyRecord = Record<string, any>
+
 // Helper: verify student is logged in
 async function getStudentSession(): Promise<{ id: string; type: string } | null> {
   try {
@@ -84,7 +86,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Siswa tidak ditemukan' }, { status: 404 })
     }
 
-    const results = []
+    const results: AnyRecord[] = []
 
     for (const item of nilaiData) {
       const smt1 = item.smt1 !== undefined && item.smt1 !== null && item.smt1 !== '' ? parseFloat(String(item.smt1)) : 0

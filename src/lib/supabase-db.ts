@@ -361,10 +361,11 @@ class SupabaseModel {
     // orderBy (top-level only; nested sorted in JS)
     if (orderBy) {
       const orderParts: string[] = []
-      const hasNested = orderBy.some(
+      const orderArr = orderBy as AnyRecord[]
+      const hasNested = orderArr.some(
         (o) => Object.values(o).some((v) => typeof v === 'object' && v !== null),
       )
-      for (const item of orderBy) {
+      for (const item of orderArr) {
         for (const [field, dir] of Object.entries(item)) {
           if (typeof dir === 'string') {
             orderParts.push(`${field}.${dir}`)
@@ -385,7 +386,7 @@ class SupabaseModel {
 
     // nested orderBy (sort in JS)
     if (orderBy) {
-      for (const item of orderBy) {
+      for (const item of orderBy as AnyRecord[]) {
         for (const [field, dir] of Object.entries(item)) {
           if (typeof dir === 'object' && dir !== null) {
             for (const [nf, nd] of Object.entries(dir as AnyRecord)) {

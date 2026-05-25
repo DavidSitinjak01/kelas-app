@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       // Mode 2: JSON with filePath (backward compatible)
       const body = await request.json()
       filePath = body.filePath as string
-      clearExisting = body.clearExisting as boolean | undefined
+      clearExisting = Boolean(body.clearExisting)
 
       if (!filePath) {
         return NextResponse.json({ error: 'filePath diperlukan' }, { status: 400 })

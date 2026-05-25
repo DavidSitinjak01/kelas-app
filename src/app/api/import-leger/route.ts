@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       // Mode 2: JSON with filePaths (backward compatible)
       const body = await request.json()
       filePaths = body.filePaths as string[]
-      clearExisting = body.clearExisting as boolean | undefined
+      clearExisting = Boolean(body.clearExisting)
     }
 
     if (filePaths.length === 0) {

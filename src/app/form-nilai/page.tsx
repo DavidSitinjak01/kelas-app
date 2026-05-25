@@ -280,7 +280,7 @@ export default function FormNilaiPage() {
   }
 
   const semesterLabels = ['Smt 1', 'Smt 2', 'Smt 3', 'Smt 4', 'Smt 5', 'Smt 6']
-  const semesterFields: (keyof NilaiEntry)[] = ['smt1', 'smt2', 'smt3', 'smt4', 'smt5', 'smt6']
+  const semesterFields = ['smt1', 'smt2', 'smt3', 'smt4', 'smt5', 'smt6'] as const
 
   // Loading state while checking session
   if (isCheckingSession) {
