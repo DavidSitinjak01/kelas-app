@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
-import { useAppStore } from '@/store/app-store'
+import { useAppStore, type PageKey } from '@/store/app-store'
 import { useAuthStore } from '@/store/auth-store'
 import { Separator } from '@/components/ui/separator'
 import { Loader2 } from 'lucide-react'
@@ -45,12 +45,12 @@ const pageTitles: Record<string, string> = {
 }
 
 export default function Home() {
-  const { activePage } = useAppStore()
-  const { isAuthenticated, isLoading, setUser } = useAuthStore()
+  const { activePage, goBack, clearHistory } = useAppStore()
+  const { isAuthenticated, isLoading, setUser, logout } = useAuthStore()
   const [setupNeeded, setSetupNeeded] = useState(false)
 
+  // Check auth on mount
   useEffect(() => {
-    // Check if user is already logged in
     fetch('/api/auth/me')
       .then(async (res) => {
         if (res.ok) {
@@ -60,7 +60,6 @@ export default function Home() {
             return
           }
         }
-        // Auth check failed — check if admin table exists
         try {
           const setupRes = await fetch('/api/setup')
           if (setupRes.ok) {
@@ -69,7 +68,6 @@ export default function Home() {
               setSetupNeeded(true)
             }
           } else {
-            // Setup returned error (likely 503 = table missing)
             try {
               const setupData = await setupRes.json()
               if (setupData.status === 'table_missing') {
@@ -86,6 +84,49 @@ export default function Home() {
       })
       .catch(() => setUser(null))
   }, [setUser])
+
+  // Manage browser history for back button navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      if (isAuthenticated) {
+        // Try to go back in app page history
+        const previousPage = goBack()
+        if (!previousPage) {
+          // No more page history → go back to login
+          logout()
+        }
+      } else {
+        // On login page, back button should close the app
+        // Try to close the window (works in some PWA contexts)
+        // For PWA on Android, going back with no history closes the app
+        window.close()
+        // If window.close() doesn't work (browsers block it), just stay
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [isAuthenticated, goBack, logout])
+
+  // Push history entry when navigating between pages
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Push a new history entry for each page navigation
+      // so back button can navigate through them
+      history.pushState({ page: activePage }, '', '/')
+    }
+  }, [activePage, isAuthenticated])
+
+  // Push initial history entry when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Replace current history entry so back button behavior is clean
+      history.replaceState({ page: 'app' }, '', '/')
+    } else if (!isLoading) {
+      // On login page, push an entry so popstate fires on back
+      history.pushState({ page: 'login' }, '', '/')
+    }
+  }, [isAuthenticated, isLoading])
 
   // Loading state while checking auth
   if (isLoading) {
