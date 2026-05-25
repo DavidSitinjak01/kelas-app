@@ -5,11 +5,11 @@ import { cookies } from 'next/headers'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { nisn, nik } = body
+    const { nama, nisn } = body
 
-    if (!nisn || !nik) {
+    if (!nama || !nisn) {
       return NextResponse.json(
-        { error: 'NISN dan NIK wajib diisi' },
+        { error: 'Nama dan NISN wajib diisi' },
         { status: 400 }
       )
     }
@@ -27,22 +27,10 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verify NIK as password
-    // Fallback: if NIK is not set (undefined or '-'), allow NIS as password
-    const studentNik = siswa.nik
-    const nikNotSet = !studentNik || studentNik === '-' || studentNik === ''
-
-    if (nikNotSet) {
-      // NIK belum diatur, gunakan NIS sebagai password sementara
-      if (siswa.nis !== nik) {
-        return NextResponse.json(
-          { error: 'NIK/NIK belum diatur. Gunakan NIS sebagai password sementara.' },
-          { status: 401 }
-        )
-      }
-    } else if (studentNik !== nik) {
+    // Verify Nama as username (case-insensitive)
+    if (siswa.nama.toLowerCase().trim() !== nama.toLowerCase().trim()) {
       return NextResponse.json(
-        { error: 'NIK salah' },
+        { error: 'Nama tidak sesuai dengan NISN' },
         { status: 401 }
       )
     }
@@ -66,7 +54,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      nikNotSet,
       student: {
         id: siswa.id,
         nis: siswa.nis,

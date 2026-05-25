@@ -18,7 +18,7 @@ import {
   Trash2,
   BookOpen,
   User,
-  AlertTriangle,
+
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -56,9 +56,9 @@ type Step = 'login' | 'form'
 
 export default function FormNilaiPage() {
   const [step, setStep] = useState<Step>('login')
+  const [nama, setNama] = useState('')
   const [nisn, setNisn] = useState('')
-  const [nik, setNik] = useState('')
-  const [showNik, setShowNik] = useState(false)
+  const [showNisn, setShowNisn] = useState(false)
   const [siswa, setSiswa] = useState<StudentInfo | null>(null)
   const [nilaiList, setNilaiList] = useState<NilaiEntry[]>([])
   const [newSubject, setNewSubject] = useState('')
@@ -67,7 +67,7 @@ export default function FormNilaiPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [loginError, setLoginError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState(false)
-  const [nikNotSet, setNikNotSet] = useState(false)
+
   const { toast } = useToast()
 
   // Check existing session on mount
@@ -109,7 +109,7 @@ export default function FormNilaiPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!nisn.trim() || !nik.trim()) return
+    if (!nama.trim() || !nisn.trim()) return
 
     setIsLoggingIn(true)
     setLoginError('')
@@ -118,7 +118,7 @@ export default function FormNilaiPage() {
       const res = await fetch('/api/public/student-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nisn: nisn.trim(), nik: nik.trim() }),
+        body: JSON.stringify({ nama: nama.trim(), nisn: nisn.trim() }),
       })
       const data = await res.json()
 
@@ -128,7 +128,6 @@ export default function FormNilaiPage() {
       }
 
       setSiswa(data.student)
-      setNikNotSet(data.nikNotSet || false)
 
       // Load nilai
       const nilaiRes = await fetch(`/api/public/nilai?siswaid=${data.student.id}`)
@@ -164,8 +163,8 @@ export default function FormNilaiPage() {
     setStep('login')
     setSiswa(null)
     setNilaiList([])
+    setNama('')
     setNisn('')
-    setNik('')
     setSaveSuccess(false)
   }
 
@@ -330,11 +329,8 @@ export default function FormNilaiPage() {
                 </div>
                 <h2 className="text-xl font-bold">Login Siswa</h2>
                 <p className="text-sm text-muted-foreground">
-                  Masukkan NISN dan NIK untuk mengisi nilai
+                  Masukkan Nama dan NISN untuk mengisi nilai
                 </p>
-                <div className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-950/50 p-2.5 text-xs text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                  <strong>Catatan:</strong> Jika NIK belum diatur, gunakan <strong>NIS</strong> sebagai password sementara
-                </div>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleLogin} className="space-y-4">
@@ -344,43 +340,43 @@ export default function FormNilaiPage() {
                     </div>
                   )}
                   <div className="space-y-2">
-                    <Label htmlFor="nisn">NISN (Nomor Induk Siswa Nasional)</Label>
+                    <Label htmlFor="nama">Nama Lengkap</Label>
                     <Input
-                      id="nisn"
+                      id="nama"
                       type="text"
-                      placeholder="Contoh: 0102432531"
-                      value={nisn}
-                      onChange={(e) => setNisn(e.target.value)}
+                      placeholder="Masukkan nama lengkap"
+                      value={nama}
+                      onChange={(e) => setNama(e.target.value)}
                       required
-                      className="text-center text-lg font-mono"
+                      className="text-center text-base"
                       autoFocus
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="nik">NIK (Nomor Induk Kependudukan) / NIS sementara</Label>
+                    <Label htmlFor="nisn">NISN (Password)</Label>
                     <div className="relative">
                       <Input
-                        id="nik"
-                        type={showNik ? 'text' : 'password'}
-                        placeholder="Masukkan NIK"
-                        value={nik}
-                        onChange={(e) => setNik(e.target.value)}
+                        id="nisn"
+                        type={showNisn ? 'text' : 'password'}
+                        placeholder="Masukkan NISN"
+                        value={nisn}
+                        onChange={(e) => setNisn(e.target.value)}
                         required
                         className="pr-10 font-mono"
                       />
                       <button
                         type="button"
-                        onClick={() => setShowNik(!showNik)}
+                        onClick={() => setShowNisn(!showNisn)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                       >
-                        {showNik ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                        {showNisn ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                       </button>
                     </div>
                   </div>
                   <Button
                     type="submit"
                     className="w-full bg-emerald-600 hover:bg-emerald-700"
-                    disabled={isLoggingIn || !nisn.trim() || !nik.trim()}
+                    disabled={isLoggingIn || !nama.trim() || !nisn.trim()}
                   >
                     {isLoggingIn ? (
                       <>
@@ -393,7 +389,7 @@ export default function FormNilaiPage() {
                   </Button>
                 </form>
                 <div className="mt-6 text-center text-xs text-muted-foreground">
-                  Hubungi wali kelas jika Anda lupa NISN atau NIK
+                  Hubungi wali kelas jika Anda lupa NISN
                 </div>
               </CardContent>
             </Card>
@@ -434,17 +430,6 @@ export default function FormNilaiPage() {
                 )}
               </div>
             </Card>
-
-            {/* NIK not set warning */}
-            {nikNotSet && (
-              <div className="rounded-lg bg-amber-50 dark:bg-amber-950/50 p-4 flex items-center gap-3 border border-amber-200 dark:border-amber-800">
-                <AlertTriangle className="size-5 text-amber-600 shrink-0" />
-                <div>
-                  <p className="font-medium text-amber-700 dark:text-amber-400">NIK belum diatur</p>
-                  <p className="text-sm text-amber-600 dark:text-amber-500">Anda login menggunakan NIS sebagai password sementara. Hubungi wali kelas untuk mengatur NIK.</p>
-                </div>
-              </div>
-            )}
 
             {/* Save success banner */}
             {saveSuccess && (
