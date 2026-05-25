@@ -68,7 +68,7 @@ export function LoginPage() {
           <p className="text-sm text-muted-foreground">Manajemen Kelas</p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
             {error && (
               <div className="rounded-lg bg-red-50 dark:bg-red-950/50 p-3 text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
                 {error}
@@ -83,7 +83,8 @@ export function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                autoComplete="username"
+                autoComplete="off"
+                data-1p-ignore
               />
             </div>
             <div className="space-y-2">
@@ -96,7 +97,8 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  autoComplete="current-password"
+                  autoComplete="off"
+                  data-1p-ignore
                   className="pr-10"
                 />
                 <button

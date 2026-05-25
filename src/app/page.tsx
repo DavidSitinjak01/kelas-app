@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
-import { useAppStore, type PageKey } from '@/store/app-store'
-import { useAuthStore } from '@/store/auth-store'
+import { useAppStore } from '@/store/app-store'
+import { useAuthStore, isSessionActive, clearSessionFlag } from '@/store/auth-store'
 import { Separator } from '@/components/ui/separator'
 import { Loader2 } from 'lucide-react'
 
@@ -45,12 +45,41 @@ const pageTitles: Record<string, string> = {
 }
 
 export default function Home() {
-  const { activePage, goBack, clearHistory } = useAppStore()
+  const { activePage, goBack } = useAppStore()
   const { isAuthenticated, isLoading, setUser, logout } = useAuthStore()
   const [setupNeeded, setSetupNeeded] = useState(false)
 
-  // Check auth on mount
+  // On page refresh/close: clear the session flag so next load forces re-login
   useEffect(() => {
+    const handleBeforeUnload = () => {
+      clearSessionFlag()
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
+  // Check auth on mount — but only allow session if it was established in this page lifecycle
+  useEffect(() => {
+    // If session flag is missing (page was refreshed), force logout first
+    if (!isSessionActive()) {
+      // Clear any existing cookie and show login
+      fetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
+      setUser(null)
+      // Also check if setup is needed
+      fetch('/api/setup')
+        .then(async (res) => {
+          if (res.ok) {
+            const setupData = await res.json()
+            if (setupData.status === 'table_missing') {
+              setSetupNeeded(true)
+            }
+          }
+        })
+        .catch(() => {})
+      return
+    }
+
+    // Session flag exists — verify with backend
     fetch('/api/auth/me')
       .then(async (res) => {
         if (res.ok) {

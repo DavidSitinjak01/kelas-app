@@ -85,6 +85,15 @@ export default function FormNilaiPage() {
     clearSession()
   }, [loadSettings])
 
+  // Clear student session flag on page unload so refresh forces re-login
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      sessionStorage.removeItem('kelasAppStudentSession')
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!nama.trim() || !nisn.trim()) return
@@ -355,7 +364,7 @@ export default function FormNilaiPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleLogin} className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
                   {loginError && (
                     <div className="rounded-lg bg-red-50 dark:bg-red-950/50 p-3 border border-red-200 dark:border-red-800">
                       <p className="text-sm font-medium text-red-600 dark:text-red-400">{loginError}</p>
@@ -382,6 +391,8 @@ export default function FormNilaiPage() {
                       required
                       className="text-center text-base"
                       autoFocus
+                      autoComplete="off"
+                      data-1p-ignore
                     />
                   </div>
                   <div className="space-y-2">
@@ -395,6 +406,8 @@ export default function FormNilaiPage() {
                         onChange={(e) => setNisn(e.target.value)}
                         required
                         className="pr-10 font-mono"
+                        autoComplete="off"
+                        data-1p-ignore
                       />
                       <button
                         type="button"

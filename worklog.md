@@ -138,3 +138,24 @@ Stage Summary:
 - PWA manifest dynamically references `/api/logo?size=192` and `/api/logo?size=512`
 - All API routes maintain graceful fallback when settings table/row doesn't exist
 - Setup SQL includes migration for existing tables (ALTER TABLE ADD COLUMN IF NOT EXISTS)
+---
+Task ID: 1
+Agent: main
+Task: Implement refresh-to-login and autofill prevention
+
+Work Log:
+- Updated `src/store/auth-store.ts` to use `sessionStorage` flag (`kelasAppSessionActive`) that tracks if session was established in current page lifecycle
+- Added `beforeunload` handler in `src/app/page.tsx` that clears the sessionStorage flag on page refresh/close
+- Modified auth check on mount: if `isSessionActive()` returns false (flag was cleared by refresh), force logout and show login page
+- When `setUser(user)` is called with a valid user, set `sessionStorage.setItem('kelasAppSessionActive', 'true')`
+- When `logout()` is called, clear the sessionStorage flag
+- Updated `src/components/login-page.tsx`: set `autoComplete="off"` on form, username input, and password input; added `data-1p-ignore` to prevent 1Password autofill
+- Updated `src/app/form-nilai/page.tsx`: added `beforeunload` handler for student session, set `autoComplete="off"` on form, nama input, and nisn input; added `data-1p-ignore` attributes
+- Cleaned up unused imports (`useCallback`, `clearHistory`, `PageKey`) from page.tsx
+- Verified lint passes cleanly and dev server compiles successfully
+
+Stage Summary:
+- Refresh behavior: On page refresh, `beforeunload` clears sessionStorage flag → on next mount, `isSessionActive()` returns false → logout API is called → login page shown with empty form
+- Normal SPA navigation: `beforeunload` does NOT fire on client-side navigation → flag stays → user stays logged in
+- Autofill prevention: All login forms now use `autoComplete="off"` and `data-1p-ignore` to prevent browser and password manager autofill
+- Student login (form-nilai) already had session-clearing on load, now also has autofill prevention
