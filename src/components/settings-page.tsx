@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast'
 export function SettingsPage() {
   const { user, setUser } = useAuthStore()
   const { toast } = useToast()
-  const { namasekolah, logopath, loadSettings, setSettings } = useSettingsStore()
+  const { namasekolah, logopath, loadSettings, setSettings, forceReload } = useSettingsStore()
 
   // Username state
   const [newUsername, setNewUsername] = useState('')
@@ -121,7 +121,22 @@ export function SettingsPage() {
       setLogoFile(null)
       setLogoPreview('')
 
-      toast({ title: 'Berhasil', description: 'Pengaturan aplikasi berhasil disimpan' })
+      // Force reload settings so DynamicFavicon updates the browser tab
+      await forceReload()
+
+      // Force browser to refresh favicon by re-adding the link
+      const existingFavicons = document.querySelectorAll('link[rel="icon"]')
+      existingFavicons.forEach((link) => link.remove())
+      const newFavicon = document.createElement('link')
+      newFavicon.rel = 'icon'
+      newFavicon.type = 'image/png'
+      newFavicon.href = '/api/logo?size=32&t=' + Date.now() // cache bust
+      document.head.appendChild(newFavicon)
+
+      // Update document title
+      document.title = `${schoolName.trim() || namasekolah} - Manajemen Kelas`
+
+      toast({ title: 'Berhasil', description: 'Pengaturan aplikasi berhasil disimpan. Favicon dan nama tab akan segera berubah.' })
     } catch {
       toast({ title: 'Gagal', description: 'Terjadi kesalahan saat menyimpan', variant: 'destructive' })
     } finally {
@@ -237,7 +252,7 @@ export function SettingsPage() {
               onChange={(e) => setSchoolName(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Nama ini akan menjadi nama aplikasi dan ditampilkan di halaman login
+              Nama ini akan menjadi nama aplikasi, judul tab browser, dan nama PWA
             </p>
           </div>
 
@@ -263,7 +278,7 @@ export function SettingsPage() {
                   className="text-sm"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Format: PNG, JPG, WebP, atau SVG. Maksimal 3 MB.
+                  Format: PNG, JPG, WebP, atau SVG. Maksimal 3 MB. Logo ini juga akan menjadi favicon di tab browser dan ikon PWA.
                 </p>
               </div>
             </div>

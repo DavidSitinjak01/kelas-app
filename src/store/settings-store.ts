@@ -9,6 +9,7 @@ interface AppSettings {
 interface SettingsStore extends AppSettings {
   setSettings: (settings: Partial<AppSettings>) => void
   loadSettings: () => Promise<void>
+  forceReload: () => Promise<void>
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -33,6 +34,22 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     } catch {
       // Use defaults
       set({ isLoaded: true })
+    }
+  },
+
+  forceReload: async () => {
+    try {
+      const res = await fetch('/api/public/settings')
+      if (res.ok) {
+        const data = await res.json()
+        set({
+          namasekolah: data.namasekolah || 'Kelas App',
+          logopath: data.logopath || '',
+          isLoaded: true,
+        })
+      }
+    } catch {
+      // Use defaults
     }
   },
 }))
