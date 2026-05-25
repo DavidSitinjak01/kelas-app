@@ -12,6 +12,7 @@ const PUBLIC_API_ROUTES = [
   '/api/public/student-login',
   '/api/public/student-me',
   '/api/public/student-logout',
+  '/api/public/student-report',
 ]
 
 export function proxy(request: NextRequest) {
