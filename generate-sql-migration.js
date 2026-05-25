@@ -108,22 +108,12 @@ const siswaFormatter = (row) => {
     escTimestamp(row.updatedAt),
   ].join(',');
 };
-// Split siswa into parts if needed (818 records should be fine in one file, but split into 2 for safety)
-const siswaFiles = writeMultiRowInsertSplit(
-  path.join(OUTPUT_DIR, '02_siswa_part'), '.sql',
-  'siswa', siswaColumns, siswas, siswaFormatter, 500, 500
+// 818 records in one file is fine for Supabase SQL Editor
+const siswaCount = writeMultiRowInsert(
+  path.join(OUTPUT_DIR, '02_siswa.sql'),
+  'siswa', siswaColumns, siswas, siswaFormatter, 500
 );
-console.log(`  Siswa: ${siswas.length} records in ${siswaFiles.length} file(s)`);
-
-// If only one file, rename to 02_siswa.sql
-if (siswaFiles.length === 1) {
-  const oldPath = path.join(OUTPUT_DIR, '02_siswa_part1.sql');
-  const newPath = path.join(OUTPUT_DIR, '02_siswa.sql');
-  if (fs.existsSync(oldPath)) {
-    fs.renameSync(oldPath, newPath);
-    siswaFiles[0].file = '02_siswa.sql';
-  }
-}
+console.log(`  Siswa: ${siswaCount} records`);
 
 // ============================================================
 // 3. NILAI (split into ~1500 records per file)
@@ -215,7 +205,7 @@ console.log(`  TKA: ${tkaCount} records`);
 // ============================================================
 console.log('\n=== MIGRATION SUMMARY ===');
 console.log(`Rombel:   ${rombelCount} records -> 01_rombel.sql`);
-siswaFiles.forEach(f => console.log(`Siswa:    ${f.records} records -> ${f.file}`));
+console.log(`Siswa:    ${siswaCount} records -> 02_siswa.sql`);
 nilaiFiles.forEach(f => console.log(`Nilai:    ${f.records} records -> ${f.file}`));
 console.log(`Eligible: ${eligibleCount} records -> 04_eligible.sql`);
 console.log(`TKA:      ${tkaCount} records -> 05_tka.sql`);

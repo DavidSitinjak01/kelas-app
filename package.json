@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
-    "dev": "node --max-old-space-size=2048 node_modules/.bin/next dev -p 3000 -H 0.0.0.0 --webpack",
+    "dev": "DATABASE_URL=postgresql://postgres.gybmzmxeknsbypthdvwr:K3las%40pp2025%21DbPass@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true DIRECT_URL=postgresql://postgres.gybmzmxeknsbypthdvwr:K3las%40pp2025%21DbPass@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres node --max-old-space-size=2048 node_modules/.bin/next dev -p 3000 -H 0.0.0.0 --webpack",
     "build": "next build",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
