@@ -1,24 +1,35 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useAppStore } from '@/store/app-store'
 import { useAuthStore } from '@/store/auth-store'
-import { DashboardPage } from '@/components/dashboard-page'
-import { RombelPage } from '@/components/rombel-page'
-import { SiswaPage } from '@/components/siswa-page'
-import { NilaiPage } from '@/components/nilai-page'
-import { EligiblePage } from '@/components/eligible-page'
-import { AnalisaPage } from '@/components/analisa-page'
-import { RekomendasiJurusanPage } from '@/components/rekomendasi-jurusan-page'
-import { RekomendasiPtPage } from '@/components/rekomendasi-pt-page'
-import { AnalisaJurusanLanjutPage } from '@/components/analisa-jurusan-lanjut-page'
-import { SettingsPage } from '@/components/settings-page'
-import { LoginPage } from '@/components/login-page'
-import { SetupPage } from '@/components/setup-page'
 import { Separator } from '@/components/ui/separator'
 import { Loader2 } from 'lucide-react'
+
+// Lazy load page components to reduce initial bundle size
+const DashboardPage = dynamic(() => import('@/components/dashboard-page').then(m => ({ default: m.DashboardPage })), { loading: () => <PageLoader /> })
+const RombelPage = dynamic(() => import('@/components/rombel-page').then(m => ({ default: m.RombelPage })), { loading: () => <PageLoader /> })
+const SiswaPage = dynamic(() => import('@/components/siswa-page').then(m => ({ default: m.SiswaPage })), { loading: () => <PageLoader /> })
+const NilaiPage = dynamic(() => import('@/components/nilai-page').then(m => ({ default: m.NilaiPage })), { loading: () => <PageLoader /> })
+const EligiblePage = dynamic(() => import('@/components/eligible-page').then(m => ({ default: m.EligiblePage })), { loading: () => <PageLoader /> })
+const AnalisaPage = dynamic(() => import('@/components/analisa-page').then(m => ({ default: m.AnalisaPage })), { loading: () => <PageLoader /> })
+const RekomendasiJurusanPage = dynamic(() => import('@/components/rekomendasi-jurusan-page').then(m => ({ default: m.RekomendasiJurusanPage })), { loading: () => <PageLoader /> })
+const RekomendasiPtPage = dynamic(() => import('@/components/rekomendasi-pt-page').then(m => ({ default: m.RekomendasiPtPage })), { loading: () => <PageLoader /> })
+const AnalisaJurusanLanjutPage = dynamic(() => import('@/components/analisa-jurusan-lanjut-page').then(m => ({ default: m.AnalisaJurusanLanjutPage })), { loading: () => <PageLoader /> })
+const SettingsPage = dynamic(() => import('@/components/settings-page').then(m => ({ default: m.SettingsPage })), { loading: () => <PageLoader /> })
+const LoginPage = dynamic(() => import('@/components/login-page').then(m => ({ default: m.LoginPage })), { loading: () => <PageLoader /> })
+const SetupPage = dynamic(() => import('@/components/setup-page').then(m => ({ default: m.SetupPage })), { loading: () => <PageLoader /> })
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center py-12">
+      <Loader2 className="size-6 animate-spin text-emerald-600" />
+    </div>
+  )
+}
 
 const pageTitles: Record<string, string> = {
   dashboard: 'Dashboard',
