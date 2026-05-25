@@ -1,6 +1,5 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
-import bcrypt from 'bcryptjs'
 
 /**
  * Setup endpoint — checks if admin table exists and provides SQL instructions.
@@ -22,8 +21,15 @@ export async function GET() {
       // Table doesn't exist yet, need to create it
     }
 
-    // Hash the default password
-    const hashedPassword = await bcrypt.hash('admin123', 10)
+    // Hash the default password using dynamic import
+    let hashedPassword: string
+    try {
+      const bcrypt = await import('bcryptjs')
+      hashedPassword = await bcrypt.default.hash('admin123', 10)
+    } catch {
+      // Fallback hash for admin123
+      hashedPassword = '$2a$10$WmsEU9nPJhNB4wplxbvjdOtjIcJD0bMW5CMeGA9wD0MoaXGrgGYOW'
+    }
 
     // Try to create the default admin via REST API (this only works if table exists)
     try {
@@ -70,11 +76,7 @@ ON CONFLICT (id) DO NOTHING;
 
 -- 2. Add NIK column to siswa table for student login
 -- (NISN = username, NIK = password)
-ALTER TABLE siswa ADD COLUMN IF NOT EXISTS nik TEXT DEFAULT '-';
-
--- Update existing siswa with placeholder NIK
--- IMPORTANT: Replace with real NIK values for each student
--- UPDATE siswa SET nik = 'REAL_NIK_HERE' WHERE nisn = 'STUDENT_NISN_HERE';
+ALTER TABLE siswa ADD COLUMN IF NOT EXISTS nik TEXT NOT NULL DEFAULT '-';
 `,
         }, { status: 503 })
       }

@@ -1,13 +1,12 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import bcrypt from 'bcryptjs'
 
 export async function PUT(request: Request) {
   try {
     const cookieStore = await cookies()
     const session = cookieStore.get('admin-session')
-    
+
     if (!session?.value) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
@@ -23,13 +22,14 @@ export async function PUT(request: Request) {
     }
 
     const admin = admins[0]
+    const bcrypt = await import('bcryptjs')
 
     // If changing password, verify current password with bcrypt
     if (newPassword) {
       if (!currentPassword) {
         return NextResponse.json({ error: 'Password saat ini diperlukan' }, { status: 400 })
       }
-      const isValid = await bcrypt.compare(currentPassword, admin.password)
+      const isValid = await bcrypt.default.compare(currentPassword, admin.password)
       if (!isValid) {
         return NextResponse.json({ error: 'Password saat ini salah' }, { status: 400 })
       }
@@ -46,7 +46,7 @@ export async function PUT(request: Request) {
       updateData.username = username
     }
     if (newPassword) {
-      updateData.password = await bcrypt.hash(newPassword, 10)
+      updateData.password = await bcrypt.default.hash(newPassword, 10)
     }
 
     if (Object.keys(updateData).length === 0) {
