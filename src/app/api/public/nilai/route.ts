@@ -1,15 +1,30 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 
-// GET: Fetch all nilai for a student
+// Helper: verify student is logged in
+async function getStudentSession(): Promise<{ id: string; type: string } | null> {
+  try {
+    const cookieStore = await cookies()
+    const session = cookieStore.get('student-session')
+    if (!session?.value) return null
+    const data = JSON.parse(session.value)
+    if (data.type !== 'student') return null
+    return data
+  } catch {
+    return null
+  }
+}
+
+// GET: Fetch all nilai for a student (requires student session)
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url)
-    const siswaid = searchParams.get('siswaid')
-
-    if (!siswaid) {
-      return NextResponse.json({ error: 'ID Siswa wajib diisi' }, { status: 400 })
+    const student = await getStudentSession()
+    if (!student) {
+      return NextResponse.json({ error: 'Siswa belum login' }, { status: 401 })
     }
+
+    const siswaid = student.id
 
     // Verify student exists
     const siswa = await db.siswa.findFirst({
@@ -31,6 +46,7 @@ export async function GET(request: Request) {
       siswa: {
         id: siswa.id,
         nis: siswa.nis,
+        nisn: siswa.nisn,
         nama: siswa.nama,
         rombel: siswa.rombel ? {
           nama: siswa.rombel.nama,
@@ -46,13 +62,19 @@ export async function GET(request: Request) {
   }
 }
 
-// PUT: Update or create nilai entries for a student
+// PUT: Update or create nilai entries for a student (requires student session)
 export async function PUT(request: Request) {
   try {
-    const body = await request.json()
-    const { siswaid, nilai: nilaiData } = body
+    const student = await getStudentSession()
+    if (!student) {
+      return NextResponse.json({ error: 'Siswa belum login' }, { status: 401 })
+    }
 
-    if (!siswaid || !Array.isArray(nilaiData)) {
+    const body = await request.json()
+    const { nilai: nilaiData } = body
+    const siswaid = student.id
+
+    if (!Array.isArray(nilaiData)) {
       return NextResponse.json({ error: 'Data tidak valid' }, { status: 400 })
     }
 

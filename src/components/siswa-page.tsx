@@ -16,12 +16,12 @@ import { useToast } from '@/hooks/use-toast'
 
 interface Rombel { id: string; nama: string; kelas: number; jurusan: string }
 interface Siswa {
-  id: string; nis: string; nisn: string; nama: string; jeniskelamin: string
+  id: string; nis: string; nisn: string; nik: string; nama: string; jeniskelamin: string
   tempatlahir: string; tanggallahir: string; rombelid: string
   rombel: Rombel
 }
 
-const emptyForm = { nis: '', nisn: '', nama: '', jeniskelamin: 'L', tempatlahir: '', tanggallahir: '', rombelid: '' }
+const emptyForm = { nis: '', nisn: '', nik: '', nama: '', jeniskelamin: 'L', tempatlahir: '', tanggallahir: '', rombelid: '' }
 const PAGE_SIZE = 50
 
 export function SiswaPage() {
@@ -136,6 +136,7 @@ export function SiswaPage() {
     setForm({
       nis: item.nis,
       nisn: item.nisn,
+      nik: item.nik || '',
       nama: item.nama,
       jeniskelamin: item.jeniskelamin,
       tempatlahir: item.tempatlahir,
@@ -347,14 +348,18 @@ export function SiswaPage() {
                 <DialogTitle>{editId ? 'Edit Siswa' : 'Tambah Siswa'}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-2">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>NIS</Label>
-                    <Input placeholder="Nomor Induk Siswa" value={form.nis} onChange={e => setForm(f => ({ ...f, nis: e.target.value }))} />
+                    <Input placeholder="NIS" value={form.nis} onChange={e => setForm(f => ({ ...f, nis: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
                     <Label>NISN</Label>
-                    <Input placeholder="NISN" value={form.nisn} onChange={e => setForm(f => ({ ...f, nisn: e.target.value }))} />
+                    <Input placeholder="NISN (login siswa)" value={form.nisn} onChange={e => setForm(f => ({ ...f, nisn: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>NIK</Label>
+                    <Input placeholder="NIK (password siswa)" value={form.nik} onChange={e => setForm(f => ({ ...f, nik: e.target.value }))} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">

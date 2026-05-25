@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// Routes that don't require authentication
+// Routes that don't require admin authentication
 const PUBLIC_API_ROUTES = [
   '/api/auth/login',
   '/api/auth/me',
@@ -9,6 +9,9 @@ const PUBLIC_API_ROUTES = [
   '/api/setup',
   '/api/public/siswa',
   '/api/public/nilai',
+  '/api/public/student-login',
+  '/api/public/student-me',
+  '/api/public/student-logout',
 ]
 
 export function proxy(request: NextRequest) {

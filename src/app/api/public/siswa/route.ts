@@ -1,6 +1,8 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 
+// This endpoint is used by admin to find a student by NIS
+// Students now login via /api/public/student-login with NISN + NIK
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -23,6 +25,7 @@ export async function GET(request: Request) {
       id: siswa.id,
       nis: siswa.nis,
       nisn: siswa.nisn,
+      nik: siswa.nik || '-',
       nama: siswa.nama,
       jeniskelamin: siswa.jeniskelamin,
       rombel: siswa.rombel ? {

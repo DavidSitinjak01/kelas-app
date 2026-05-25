@@ -26,6 +26,7 @@ model Siswa {
   id            String   @id @default(cuid())
   nis           String   @unique
   nisn          String   @default("-")
+  nik           String   @default("-")
   nama          String
   jeniskelamin  String   @map("jeniskelamin")
   tempatlahir   String   @default("-") @map("tempatlahir")

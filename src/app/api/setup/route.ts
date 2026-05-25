@@ -3,9 +3,8 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 
 /**
- * Setup endpoint — creates the admin table and seeds a default admin.
- *
- * Call this endpoint once after deployment: GET /api/setup
+ * Setup endpoint — checks if admin table exists and provides SQL instructions.
+ * Also includes NIK column addition for the siswa table (student login).
  */
 export async function GET() {
   try {
@@ -47,12 +46,13 @@ export async function GET() {
       if (errMsg.includes('PGRST205') || errMsg.includes('Could not find') || errMsg.includes('not found')) {
         return NextResponse.json({
           status: 'table_missing',
-          message: 'Admin table does not exist in the database. Please run the following SQL in the Supabase SQL Editor:',
-          sql: `-- NOTE: The password must be a bcrypt hash of 'admin123'.
--- Run this in Node.js to generate the hash:
---   const bcrypt = require('bcryptjs'); bcrypt.hash('admin123', 10).then(console.log)
--- Then replace the password value below with the generated hash.
+          message: 'Admin table does not exist. Please run the SQL in Supabase SQL Editor.',
+          sql: `-- =============================================
+-- Kelas App: Database Setup Script
+-- Run this in Supabase SQL Editor
+-- =============================================
 
+-- 1. Create admin table for admin login
 CREATE TABLE IF NOT EXISTS admin (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL UNIQUE,
@@ -63,10 +63,19 @@ CREATE TABLE IF NOT EXISTS admin (
 
 ALTER TABLE admin DISABLE ROW LEVEL SECURITY;
 
--- Replace the password below with a bcrypt hash of 'admin123'
+-- Insert default admin (password: admin123, bcrypt hashed)
 INSERT INTO admin (id, username, password)
 VALUES ('admin1', 'admin', '${hashedPassword}')
-ON CONFLICT (id) DO NOTHING;`,
+ON CONFLICT (id) DO NOTHING;
+
+-- 2. Add NIK column to siswa table for student login
+-- (NISN = username, NIK = password)
+ALTER TABLE siswa ADD COLUMN IF NOT EXISTS nik TEXT DEFAULT '-';
+
+-- Update existing siswa with placeholder NIK
+-- IMPORTANT: Replace with real NIK values for each student
+-- UPDATE siswa SET nik = 'REAL_NIK_HERE' WHERE nisn = 'STUDENT_NISN_HERE';
+`,
         }, { status: 503 })
       }
 

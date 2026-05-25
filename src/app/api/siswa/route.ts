@@ -52,6 +52,7 @@ export async function POST(request: Request) {
       data: {
         nis: body.nis,
         nisn: body.nisn || '-',
+        nik: body.nik || '-',
         nama: body.nama,
         jeniskelamin: body.jeniskelamin,
         tempatlahir: body.tempatlahir || '-',
@@ -82,6 +83,7 @@ export async function PUT(request: Request) {
       data: {
         nis: body.nis,
         nisn: body.nisn || '-',
+        nik: body.nik || '-',
         nama: body.nama,
         jeniskelamin: body.jeniskelamin,
         tempatlahir: body.tempatlahir || '-',
