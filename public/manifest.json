@@ -1,7 +1,7 @@
 {
   "name": "Kelas App - Manajemen Kelas",
   "short_name": "Kelas App",
-  "description": "Aplikasi manajemen kelas untuk guru dan wali kelas. Kelola rombel, data siswa, nilai, eligible, dan rekomendasi jurusan/PT.",
+  "description": "Aplikasi manajemen kelas untuk guru dan wali kelas.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
