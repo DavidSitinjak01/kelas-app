@@ -69,6 +69,10 @@ export function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
+            {/* Hidden decoy inputs to trap browser autofill */}
+            <input type="text" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
+            <input type="password" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
+
             {error && (
               <div className="rounded-lg bg-red-50 dark:bg-red-950/50 p-3 text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
                 {error}
@@ -82,9 +86,12 @@ export function LoginPage() {
                 placeholder="Masukkan username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                onFocus={(e) => e.target.removeAttribute('readonly')}
                 required
+                readOnly
                 autoComplete="off"
                 data-1p-ignore
+                data-lpignore="true"
               />
             </div>
             <div className="space-y-2">
@@ -96,9 +103,12 @@ export function LoginPage() {
                   placeholder="Masukkan password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onFocus={(e) => e.target.removeAttribute('readonly')}
                   required
-                  autoComplete="off"
+                  readOnly
+                  autoComplete="new-password"
                   data-1p-ignore
+                  data-lpignore="true"
                   className="pr-10"
                 />
                 <button

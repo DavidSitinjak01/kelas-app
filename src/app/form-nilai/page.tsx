@@ -365,6 +365,9 @@ export default function FormNilaiPage() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
+                  {/* Hidden decoy inputs to trap browser autofill */}
+                  <input type="text" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
+                  <input type="password" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
                   {loginError && (
                     <div className="rounded-lg bg-red-50 dark:bg-red-950/50 p-3 border border-red-200 dark:border-red-800">
                       <p className="text-sm font-medium text-red-600 dark:text-red-400">{loginError}</p>
@@ -388,11 +391,14 @@ export default function FormNilaiPage() {
                       placeholder="Masukkan nama lengkap"
                       value={nama}
                       onChange={(e) => setNama(e.target.value)}
+                      onFocus={(e) => e.target.removeAttribute('readonly')}
                       required
                       className="text-center text-base"
                       autoFocus
+                      readOnly
                       autoComplete="off"
                       data-1p-ignore
+                      data-lpignore="true"
                     />
                   </div>
                   <div className="space-y-2">
@@ -404,10 +410,13 @@ export default function FormNilaiPage() {
                         placeholder="Masukkan NISN"
                         value={nisn}
                         onChange={(e) => setNisn(e.target.value)}
+                        onFocus={(e) => e.target.removeAttribute('readonly')}
                         required
                         className="pr-10 font-mono"
-                        autoComplete="off"
+                        readOnly
+                        autoComplete="new-password"
                         data-1p-ignore
+                        data-lpignore="true"
                       />
                       <button
                         type="button"
