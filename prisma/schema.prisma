@@ -96,3 +96,13 @@ model TKA {
 
   @@map("tka")
 }
+
+model Admin {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  createdat DateTime @default(now()) @map("createdat")
+  updatedat DateTime @updatedAt @map("updatedat")
+
+  @@map("admin")
+}

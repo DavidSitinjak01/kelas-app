@@ -6,7 +6,7 @@ interface AuthState {
   isAuthenticated: boolean
   setUser: (user: { id: string; username: string } | null) => void
   setLoading: (loading: boolean) => void
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -15,8 +15,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   setUser: (user) => set({ user, isAuthenticated: !!user, isLoading: false }),
   setLoading: (isLoading) => set({ isLoading }),
-  logout: () => {
-    fetch('/api/auth/logout', { method: 'POST' })
+  logout: async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch {
+      // Ignore errors — we still want to clear local state
+    }
     set({ user: null, isAuthenticated: false })
   },
 }))

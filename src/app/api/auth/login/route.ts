@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import bcrypt from 'bcryptjs'
 
 export async function POST(request: Request) {
   try {
@@ -19,8 +20,9 @@ export async function POST(request: Request) {
 
     const admin = admins[0]
     
-    // Simple password comparison (plaintext for now, will hash later)
-    if (admin.password !== password) {
+    // Compare password with bcrypt hash
+    const isValid = await bcrypt.compare(password, admin.password)
+    if (!isValid) {
       return NextResponse.json({ error: 'Username atau password salah' }, { status: 401 })
     }
 

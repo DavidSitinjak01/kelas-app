@@ -50,7 +50,6 @@ export function AppSidebar() {
   const { user, logout } = useAuthStore()
 
   const handleLogout = () => {
-    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
     logout()
   }
 

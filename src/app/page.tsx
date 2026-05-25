@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useAppStore } from '@/store/app-store'
@@ -16,6 +16,7 @@ import { RekomendasiPtPage } from '@/components/rekomendasi-pt-page'
 import { AnalisaJurusanLanjutPage } from '@/components/analisa-jurusan-lanjut-page'
 import { SettingsPage } from '@/components/settings-page'
 import { LoginPage } from '@/components/login-page'
+import { SetupPage } from '@/components/setup-page'
 import { Separator } from '@/components/ui/separator'
 import { Loader2 } from 'lucide-react'
 
@@ -35,17 +36,30 @@ const pageTitles: Record<string, string> = {
 export default function Home() {
   const { activePage } = useAppStore()
   const { isAuthenticated, isLoading, setUser } = useAuthStore()
+  const [setupNeeded, setSetupNeeded] = useState(false)
 
   useEffect(() => {
     // Check if user is already logged in
     fetch('/api/auth/me')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.user) {
-          setUser(data.user)
-        } else {
-          setUser(null)
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json()
+          if (data?.user) {
+            setUser(data.user)
+            return
+          }
         }
+        // Auth check failed — check if admin table exists
+        try {
+          const setupRes = await fetch('/api/setup')
+          const setupData = await setupRes.json()
+          if (setupData.status === 'table_missing') {
+            setSetupNeeded(true)
+          }
+        } catch {
+          // Setup check failed, just show login
+        }
+        setUser(null)
       })
       .catch(() => setUser(null))
   }, [setUser])
@@ -57,6 +71,11 @@ export default function Home() {
         <Loader2 className="size-8 animate-spin text-emerald-600" />
       </div>
     )
+  }
+
+  // Setup needed - admin table doesn't exist
+  if (setupNeeded) {
+    return <SetupPage />
   }
 
   // Not authenticated - show login
