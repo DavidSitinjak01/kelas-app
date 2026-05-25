@@ -52,9 +52,21 @@ export default function Home() {
         // Auth check failed — check if admin table exists
         try {
           const setupRes = await fetch('/api/setup')
-          const setupData = await setupRes.json()
-          if (setupData.status === 'table_missing') {
-            setSetupNeeded(true)
+          if (setupRes.ok) {
+            const setupData = await setupRes.json()
+            if (setupData.status === 'table_missing') {
+              setSetupNeeded(true)
+            }
+          } else {
+            // Setup returned error (likely 503 = table missing)
+            try {
+              const setupData = await setupRes.json()
+              if (setupData.status === 'table_missing') {
+                setSetupNeeded(true)
+              }
+            } catch {
+              // Can't parse - just show login
+            }
           }
         } catch {
           // Setup check failed, just show login
@@ -67,8 +79,11 @@ export default function Home() {
   // Loading state while checking auth
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-emerald-600" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-gray-950 dark:to-gray-900">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="size-8 animate-spin text-emerald-600" />
+          <p className="text-sm text-muted-foreground">Memuat...</p>
+        </div>
       </div>
     )
   }

@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Eye, EyeOff, GraduationCap, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, GraduationCap, Loader2, BookOpen } from 'lucide-react'
 import { useAuthStore } from '@/store/auth-store'
 import { useToast } from '@/hooks/use-toast'
+import Link from 'next/link'
 
 export function LoginPage() {
   const [username, setUsername] = useState('')
@@ -107,8 +108,16 @@ export function LoginPage() {
               )}
             </Button>
           </form>
-          <div className="mt-6 text-center text-xs text-muted-foreground">
-            © 2025 Kelas App
+          <div className="mt-6 pt-4 border-t space-y-3">
+            <Link href="/form-nilai" className="block">
+              <Button variant="outline" className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/30">
+                <BookOpen className="size-4 mr-2" />
+                Login Siswa (Form Isi Nilai)
+              </Button>
+            </Link>
+            <p className="text-center text-xs text-muted-foreground">
+              © 2025 Kelas App
+            </p>
           </div>
         </CardContent>
       </Card>
