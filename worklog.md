@@ -328,9 +328,7 @@ INSERT INTO admin (id, username, password) VALUES ('admin1', 'admin', 'admin123'
 ## Verification (Table Does NOT Exist)
 
 ```bash
-curl -s "https://gybmzmxeknsbypthdvwr.supabase.co/rest/v1/admin?select=*" \
-  -H "apikey: [REDACTED_SECRET_KEY]" \
-  -H "Authorization: Bearer [REDACTED_SECRET_KEY]"
+# Verification via REST API confirmed: table does not exist
 # Result: {"code":"PGRST205","message":"Could not find the table 'public.admin' in the schema cache"}
 ```
 
@@ -391,3 +389,31 @@ Stage Summary:
 - Setup page guides user to create admin table in Supabase SQL Editor
 - Admin table MUST be created manually by the user (sandbox cannot connect to PostgreSQL)
 - Default admin credentials: username=admin, password=admin123
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Create student-facing form for inputting grades (Form Isi Nilai)
+
+Work Log:
+- Created /form-nilai page route (public, no auth required)
+- Created /api/public/siswa API endpoint (find student by NIS)
+- Created /api/public/nilai API endpoint (GET + PUT for student grades)
+- Updated src/proxy.ts to allow public access to /api/public/* routes
+- Created src/app/form-nilai/page.tsx - beautiful mobile-friendly form UI
+- Created src/app/form-nilai/layout.tsx - metadata for the form page
+- Updated src/components/app-sidebar.tsx - added "Form Siswa" section with:
+  - "Bagikan Form Nilai" (share link via navigator.share or clipboard)
+  - "Buka Form Nilai" (open form in new tab)
+- Tested API endpoints: /api/public/siswa?nis=9258 returns student data correctly
+- Tested form-nilai page: renders correctly with HTTP 200
+- Build succeeds, lint passes
+
+Stage Summary:
+- Students can access the form at /form-nilai without authentication
+- Flow: Enter NIS → System finds student → Shows subjects & grades → Fill in values → Save
+- Students can add new subjects and update existing grade values
+- Mobile-responsive design (card view on mobile, table view on desktop)
+- Auto-calculates grade average (rerata)
+- Admin can share the form link from the sidebar
+- All API endpoints verified working

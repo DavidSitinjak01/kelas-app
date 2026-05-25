@@ -2,15 +2,24 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // Routes that don't require authentication
-const PUBLIC_API_ROUTES = ['/api/auth/login', '/api/auth/me', '/api/auth/logout', '/api/setup']
+const PUBLIC_API_ROUTES = [
+  '/api/auth/login',
+  '/api/auth/me',
+  '/api/auth/logout',
+  '/api/setup',
+  '/api/public/siswa',
+  '/api/public/nilai',
+]
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Only protect /api/ routes
   if (pathname.startsWith('/api/')) {
-    // Check if this is a public route
-    const isPublic = PUBLIC_API_ROUTES.some((route) => pathname === route)
+    // Check if this is a public route (exact match or sub-path)
+    const isPublic = PUBLIC_API_ROUTES.some(
+      (route) => pathname === route || pathname.startsWith(route + '/')
+    )
 
     if (!isPublic) {
       // Check for admin-session cookie

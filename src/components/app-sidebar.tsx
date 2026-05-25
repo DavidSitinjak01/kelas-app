@@ -12,6 +12,8 @@ import {
   Building2,
   Settings,
   LogOut,
+  Share2,
+  ExternalLink,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -53,6 +55,27 @@ export function AppSidebar() {
     logout()
   }
 
+  const handleShareFormNilai = () => {
+    const url = `${window.location.origin}/form-nilai`
+    if (navigator.share) {
+      navigator.share({
+        title: 'Form Isi Nilai - Kelas App',
+        text: 'Silakan isi nilai mata pelajaran melalui link berikut:',
+        url,
+      }).catch(() => {})
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        alert('Link form nilai berhasil disalin!\n\n' + url)
+      }).catch(() => {
+        prompt('Salin link berikut:', url)
+      })
+    }
+  }
+
+  const handleOpenFormNilai = () => {
+    window.open('/form-nilai', '_blank')
+  }
+
   return (
     <Sidebar variant="sidebar" collapsible="icon">
       <SidebarHeader className="p-4">
@@ -83,6 +106,32 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarSeparator />
+        <SidebarGroup>
+          <SidebarGroupLabel>Form Siswa</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={handleShareFormNilai}
+                  tooltip="Bagikan Form Nilai"
+                >
+                  <Share2 className="size-4" />
+                  <span>Bagikan Form Nilai</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={handleOpenFormNilai}
+                  tooltip="Buka Form Nilai"
+                >
+                  <ExternalLink className="size-4" />
+                  <span>Buka Form Nilai</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
