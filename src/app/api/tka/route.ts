@@ -5,12 +5,12 @@ import { db } from '@/lib/db'
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const rombelId = searchParams.get('rombelId')
+    const rombelid = searchParams.get('rombelid')
     const includeCoverage = searchParams.get('coverage') === 'true'
 
     const where: Record<string, unknown> = {}
-    if (rombelId) {
-      where.siswa = { rombelId }
+    if (rombelid) {
+      where.siswa = { rombelid }
     }
 
     const tkaRecords = await db.tKA.findMany({
@@ -40,10 +40,10 @@ export async function GET(request: Request) {
         }
       })
 
-      const tkaSiswaIds = new Set(tkaRecords.map(t => t.siswaId))
+      const tkaSiswaIds = new Set(tkaRecords.map(t => t.siswaid))
 
       const coverage = xiiRombels.map(r => ({
-        rombelId: r.id,
+        rombelid: r.id,
         rombelNama: r.nama,
         totalSiswa: r.siswa.length,
         tkaCount: r.siswa.filter(s => tkaSiswaIds.has(s.id)).length,
@@ -63,18 +63,18 @@ export async function GET(request: Request) {
   }
 }
 
-// DELETE /api/tka - Delete a TKA record by siswaId
+// DELETE /api/tka - Delete a TKA record by siswaid
 export async function DELETE(request: Request) {
   try {
     const body = await request.json()
-    const { siswaId, id } = body
+    const { siswaid, id } = body
 
     if (id) {
       await db.tKA.delete({ where: { id } })
-    } else if (siswaId) {
-      await db.tKA.delete({ where: { siswaId } })
+    } else if (siswaid) {
+      await db.tKA.delete({ where: { siswaid } })
     } else {
-      return NextResponse.json({ error: 'siswaId atau id diperlukan' }, { status: 400 })
+      return NextResponse.json({ error: 'siswaid atau id diperlukan' }, { status: 400 })
     }
 
     return NextResponse.json({ success: true })

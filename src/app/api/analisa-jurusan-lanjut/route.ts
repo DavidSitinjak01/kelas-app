@@ -495,27 +495,27 @@ interface SubjectTrend {
 }
 
 interface TKAData {
-  bindoNilai: number
-  bindoKategori: string
-  matNilai: number
-  matKategori: string
-  bingNilai: number
-  bingKategori: string
-  pilihan1Nama: string
-  pilihan1Nilai: number
-  pilihan1Kategori: string
-  pilihan2Nama: string
-  pilihan2Nilai: number
-  pilihan2Kategori: string
+  bindonilai: number
+  bindokategori: string
+  matnilai: number
+  matkategori: string
+  bingnilai: number
+  bingkategori: string
+  pilihan1nama: string
+  pilihan1nilai: number
+  pilihan1kategori: string
+  pilihan2nama: string
+  pilihan2nilai: number
+  pilihan2kategori: string
 }
 
 interface AnalysisResult {
-  siswaId: string
+  siswaid: string
   nama: string
   nis: string
   nisn: string
   rombelNama: string
-  rombelId: string
+  rombelid: string
   rombelJurusan: string
   kelas: number
   // IPA vs IPS inclination
@@ -650,9 +650,9 @@ function adjustMajorScoresWithTKA(
   const adjusted = baseScores.map(s => ({ ...s, mapelDetail: [...s.mapelDetail] }))
 
   // 1. TKA mandatory scores validate core competency
-  const tkaBindo = tkaData.bindoNilai || 0
-  const tkaMat = tkaData.matNilai || 0
-  const tkaBing = tkaData.bingNilai || 0
+  const tkaBindo = tkaData.bindonilai || 0
+  const tkaMat = tkaData.matnilai || 0
+  const tkaBing = tkaData.bingnilai || 0
   const tkaMandatoryAvg = (tkaBindo + tkaMat + tkaBing) / 3
 
   // TKA mandatory boosts all majors slightly (academic foundation)
@@ -691,8 +691,8 @@ function adjustMajorScoresWithTKA(
     }
   }
 
-  processPilihan(tkaData.pilihan1Nama, tkaData.pilihan1Nilai)
-  processPilihan(tkaData.pilihan2Nama, tkaData.pilihan2Nilai)
+  processPilihan(tkaData.pilihan1nama, tkaData.pilihan1nilai)
+  processPilihan(tkaData.pilihan2nama, tkaData.pilihan2nilai)
 
   // 3. TKA Math score specifically boosts IPA-heavy majors
   if (tkaMat >= 60 && trackInclination.ipa > 50) {
@@ -790,7 +790,7 @@ function generateReasoning(
 
   // TKA specific
   if (tkaData) {
-    const tkaMandatoryAvg = ((tkaData.bindoNilai || 0) + (tkaData.matNilai || 0) + (tkaData.bingNilai || 0)) / 3
+    const tkaMandatoryAvg = ((tkaData.bindonilai || 0) + (tkaData.matnilai || 0) + (tkaData.bingnilai || 0)) / 3
     if (tkaMandatoryAvg >= 65) {
       reasons.push(`Rata-rata TKA wajib (${tkaMandatoryAvg.toFixed(1)}) baik — mendukung seleksi SNBT`)
     } else if (tkaMandatoryAvg >= 45) {
@@ -799,8 +799,8 @@ function generateReasoning(
       reasons.push(`Rata-rata TKA wajib (${tkaMandatoryAvg.toFixed(1)}) rendah — perlu persiapan lebih untuk SNBT`)
     }
 
-    if (tkaData.pilihan1Nama) {
-      reasons.push(`TKA pilihan: ${tkaData.pilihan1Nama} (${tkaData.pilihan1Nilai}) & ${tkaData.pilihan2Nama} (${tkaData.pilihan2Nilai})`)
+    if (tkaData.pilihan1nama) {
+      reasons.push(`TKA pilihan: ${tkaData.pilihan1nama} (${tkaData.pilihan1nilai}) & ${tkaData.pilihan2nama} (${tkaData.pilihan2nilai})`)
     }
   }
 
@@ -845,7 +845,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const kelasParam = searchParams.get('kelas')
-    const rombelId = searchParams.get('rombelId')
+    const rombelid = searchParams.get('rombelid')
 
     const kelas = kelasParam ? parseInt(kelasParam) : 12
     if (![11, 12].includes(kelas)) {
@@ -868,8 +868,8 @@ export async function GET(request: Request) {
       })
     }
 
-    const targetRombels = rombelId
-      ? rombels.filter(r => r.id === rombelId)
+    const targetRombels = rombelid
+      ? rombels.filter(r => r.id === rombelid)
       : rombels
 
     const allSiswaIds = targetRombels.flatMap(r => r.siswa.map(s => s.id))
@@ -886,7 +886,7 @@ export async function GET(request: Request) {
 
     // Fetch all nilai for these students
     const nilaiData = await db.nilai.findMany({
-      where: { siswaId: { in: allSiswaIds } },
+      where: { siswaid: { in: allSiswaIds } },
       include: { siswa: { include: { rombel: true } } },
     })
 
@@ -894,44 +894,44 @@ export async function GET(request: Request) {
     let tkaRecords: Map<string, TKAData> = new Map()
     if (kelas === 12) {
       const tkaData = await db.tKA.findMany({
-        where: { siswaId: { in: allSiswaIds } },
+        where: { siswaid: { in: allSiswaIds } },
       })
       for (const tka of tkaData) {
-        tkaRecords.set(tka.siswaId, {
-          bindoNilai: tka.bindoNilai,
-          bindoKategori: tka.bindoKategori,
-          matNilai: tka.matNilai,
-          matKategori: tka.matKategori,
-          bingNilai: tka.bingNilai,
-          bingKategori: tka.bingKategori,
-          pilihan1Nama: tka.pilihan1Nama,
-          pilihan1Nilai: tka.pilihan1Nilai,
-          pilihan1Kategori: tka.pilihan1Kategori,
-          pilihan2Nama: tka.pilihan2Nama,
-          pilihan2Nilai: tka.pilihan2Nilai,
-          pilihan2Kategori: tka.pilihan2Kategori,
+        tkaRecords.set(tka.siswaid, {
+          bindonilai: tka.bindonilai,
+          bindokategori: tka.bindokategori,
+          matnilai: tka.matnilai,
+          matkategori: tka.matkategori,
+          bingnilai: tka.bingnilai,
+          bingkategori: tka.bingkategori,
+          pilihan1nama: tka.pilihan1nama,
+          pilihan1nilai: tka.pilihan1nilai,
+          pilihan1kategori: tka.pilihan1kategori,
+          pilihan2nama: tka.pilihan2nama,
+          pilihan2nilai: tka.pilihan2nilai,
+          pilihan2kategori: tka.pilihan2kategori,
         })
       }
     }
 
     // Group nilai by siswa
     const siswaNilaiMap = new Map<string, {
-      siswaId: string; nama: string; nis: string; nisn: string
-      rombelNama: string; rombelId: string; rombelJurusan: string
+      siswaid: string; nama: string; nis: string; nisn: string
+      rombelNama: string; rombelid: string; rombelJurusan: string
       nilaiMap: Map<string, number>
-      allNilai: { mataPelajaran: string; rerata: number; smt1: number; smt2: number; smt3: number; smt4: number; smt5: number; smt6: number }[]
+      allNilai: { matapelajaran: string; rerata: number; smt1: number; smt2: number; smt3: number; smt4: number; smt5: number; smt6: number }[]
     }>()
 
     for (const nilai of nilaiData) {
-      const sid = nilai.siswaId
+      const sid = nilai.siswaid
       if (!siswaNilaiMap.has(sid)) {
         siswaNilaiMap.set(sid, {
-          siswaId: sid,
+          siswaid: sid,
           nama: nilai.siswa.nama,
           nis: nilai.siswa.nis,
           nisn: nilai.siswa.nisn,
           rombelNama: nilai.siswa.rombel.nama,
-          rombelId: nilai.siswa.rombel.id,
+          rombelid: nilai.siswa.rombel.id,
           rombelJurusan: nilai.siswa.rombel.jurusan,
           nilaiMap: new Map(),
           allNilai: [],
@@ -939,11 +939,11 @@ export async function GET(request: Request) {
       }
 
       const entry = siswaNilaiMap.get(sid)!
-      if (!isExcluded(nilai.mataPelajaran)) {
-        entry.nilaiMap.set(nilai.mataPelajaran, nilai.rerata)
+      if (!isExcluded(nilai.matapelajaran)) {
+        entry.nilaiMap.set(nilai.matapelajaran, nilai.rerata)
       }
       entry.allNilai.push({
-        mataPelajaran: nilai.mataPelajaran,
+        matapelajaran: nilai.matapelajaran,
         rerata: nilai.rerata,
         smt1: nilai.smt1,
         smt2: nilai.smt2,
@@ -959,12 +959,12 @@ export async function GET(request: Request) {
       for (const siswa of rombel.siswa) {
         if (!siswaNilaiMap.has(siswa.id)) {
           siswaNilaiMap.set(siswa.id, {
-            siswaId: siswa.id,
+            siswaid: siswa.id,
             nama: siswa.nama,
             nis: siswa.nis,
             nisn: siswa.nisn,
             rombelNama: rombel.nama,
-            rombelId: rombel.id,
+            rombelid: rombel.id,
             rombelJurusan: rombel.jurusan,
             nilaiMap: new Map(),
             allNilai: [],
@@ -1003,7 +1003,7 @@ export async function GET(request: Request) {
           const earlyAvg = early.reduce((a, b) => a + b, 0) / early.length
           const lateAvg = late.reduce((a, b) => a + b, 0) / late.length
           subjectTrends.push({
-            mapel: nilai.mataPelajaran,
+            mapel: nilai.matapelajaran,
             trend: Math.round((lateAvg - earlyAvg) * 10) / 10,
             earlyAvg: Math.round(earlyAvg * 10) / 10,
             lateAvg: Math.round(lateAvg * 10) / 10,
@@ -1097,8 +1097,8 @@ export async function GET(request: Request) {
       const consistency = calculateConsistency(allScores)
 
       // Semester trend
-      const ipaNilaiRecords = sn.allNilai.filter(n => getSubjectCoreType(n.mataPelajaran) === 'ipa')
-      const ipsNilaiRecords = sn.allNilai.filter(n => getSubjectCoreType(n.mataPelajaran) === 'ips')
+      const ipaNilaiRecords = sn.allNilai.filter(n => getSubjectCoreType(n.matapelajaran) === 'ipa')
+      const ipsNilaiRecords = sn.allNilai.filter(n => getSubjectCoreType(n.matapelajaran) === 'ips')
 
       const calcTrend = (records: typeof sn.allNilai) => {
         const firstHalf: number[] = []
@@ -1127,7 +1127,7 @@ export async function GET(request: Request) {
 
       // Confidence
       const tkaSubjectCount = hasTKA && tkaData
-        ? (tkaData.pilihan1Nama ? 1 : 0) + (tkaData.pilihan2Nama ? 1 : 0)
+        ? (tkaData.pilihan1nama ? 1 : 0) + (tkaData.pilihan2nama ? 1 : 0)
         : 0
       const confidence = calculateConfidence(hasNilai, hasTKA, consistency, topMajorGap, sn.nilaiMap.size, tkaSubjectCount)
 
@@ -1143,12 +1143,12 @@ export async function GET(request: Request) {
       )
 
       results.push({
-        siswaId: sid,
+        siswaid: sid,
         nama: sn.nama,
         nis: sn.nis,
         nisn: sn.nisn,
         rombelNama: sn.rombelNama,
-        rombelId: sn.rombelId,
+        rombelid: sn.rombelid,
         rombelJurusan: sn.rombelJurusan,
         kelas,
         ipaInclination: trackInclination.ipa,

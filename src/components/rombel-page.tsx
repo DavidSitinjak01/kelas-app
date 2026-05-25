@@ -18,12 +18,12 @@ interface Rombel {
   nama: string
   kelas: number
   jurusan: string
-  tahunAjaran: string
-  waliKelas: string
+  tahunajaran: string
+  walikelas: string
   _count?: { siswa: number }
 }
 
-const emptyForm = { nama: '', kelas: '10', jurusan: 'Umum', tahunAjaran: '2024/2025', waliKelas: '' }
+const emptyForm = { nama: '', kelas: '10', jurusan: 'Umum', tahunajaran: '2024/2025', walikelas: '' }
 
 export function RombelPage() {
   const [data, setData] = useState<Rombel[]>([])
@@ -88,8 +88,8 @@ export function RombelPage() {
       nama: item.nama,
       kelas: String(item.kelas),
       jurusan: item.jurusan,
-      tahunAjaran: item.tahunAjaran,
-      waliKelas: item.waliKelas,
+      tahunajaran: item.tahunajaran,
+      walikelas: item.walikelas,
     })
     setOpen(true)
   }
@@ -157,14 +157,14 @@ export function RombelPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Tahun Ajaran</Label>
-                  <Input placeholder="2024/2025" value={form.tahunAjaran} onChange={e => setForm(f => ({ ...f, tahunAjaran: e.target.value }))} />
+                  <Input placeholder="2024/2025" value={form.tahunajaran} onChange={e => setForm(f => ({ ...f, tahunajaran: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
                   <Label>Wali Kelas</Label>
-                  <Input placeholder="Nama wali kelas" value={form.waliKelas} onChange={e => setForm(f => ({ ...f, waliKelas: e.target.value }))} />
+                  <Input placeholder="Nama wali kelas" value={form.walikelas} onChange={e => setForm(f => ({ ...f, walikelas: e.target.value }))} />
                 </div>
               </div>
-              <Button onClick={handleSubmit} className="w-full" disabled={!form.nama || !form.waliKelas}>
+              <Button onClick={handleSubmit} className="w-full" disabled={!form.nama || !form.walikelas}>
                 {editId ? 'Perbarui' : 'Simpan'}
               </Button>
             </div>
@@ -199,8 +199,8 @@ export function RombelPage() {
                     <TableCell className="font-medium">{item.nama}</TableCell>
                     <TableCell><Badge className={kelasColor(item.kelas)}>Kelas {item.kelas}</Badge></TableCell>
                     <TableCell>{item.jurusan}</TableCell>
-                    <TableCell>{item.tahunAjaran}</TableCell>
-                    <TableCell>{item.waliKelas}</TableCell>
+                    <TableCell>{item.tahunajaran}</TableCell>
+                    <TableCell>{item.walikelas}</TableCell>
                     <TableCell>{item._count?.siswa ?? 0}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">

@@ -4,15 +4,15 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const rombelId = searchParams.get('rombelId')
+    const rombelid = searchParams.get('rombelid')
     const search = searchParams.get('search')
     const limit = parseInt(searchParams.get('limit') || '0') // 0 means all
     const page = parseInt(searchParams.get('page') || '1')
 
     const where: Record<string, unknown> = {}
     
-    if (rombelId) {
-      where.rombelId = rombelId
+    if (rombelid) {
+      where.rombelid = rombelid
     }
     
     if (search) {
@@ -53,10 +53,10 @@ export async function POST(request: Request) {
         nis: body.nis,
         nisn: body.nisn || '-',
         nama: body.nama,
-        jenisKelamin: body.jenisKelamin,
-        tempatLahir: body.tempatLahir || '-',
-        tanggalLahir: body.tanggalLahir || '-',
-        rombelId: body.rombelId,
+        jeniskelamin: body.jeniskelamin,
+        tempatlahir: body.tempatlahir || '-',
+        tanggallahir: body.tanggallahir || '-',
+        rombelid: body.rombelid,
       },
       include: { rombel: true },
     })
@@ -83,10 +83,10 @@ export async function PUT(request: Request) {
         nis: body.nis,
         nisn: body.nisn || '-',
         nama: body.nama,
-        jenisKelamin: body.jenisKelamin,
-        tempatLahir: body.tempatLahir || '-',
-        tanggalLahir: body.tanggalLahir || '-',
-        rombelId: body.rombelId,
+        jeniskelamin: body.jeniskelamin,
+        tempatlahir: body.tempatlahir || '-',
+        tanggallahir: body.tanggallahir || '-',
+        rombelid: body.rombelid,
       },
       include: { rombel: true },
     })

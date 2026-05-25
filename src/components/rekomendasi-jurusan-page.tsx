@@ -30,7 +30,7 @@ interface FactorScores {
 }
 
 interface AnalysisStudent {
-  siswaId: string; nama: string; nis: string; nisn: string; rombelNama: string
+  siswaid: string; nama: string; nis: string; nisn: string; rombelNama: string
   ipaScore: number; ipsScore: number
   ipaSubjects: SubjectScore[]; ipsSubjects: SubjectScore[]
   neutralSubjects: SimpleSubject[]; excludedSubjects: SimpleSubject[]
@@ -69,11 +69,11 @@ export function RekomendasiJurusanPage() {
   const [selectedStudent, setSelectedStudent] = useState<AnalysisStudent | null>(null)
   const { toast } = useToast()
 
-  const fetchData = useCallback(async (rombelId?: string) => {
+  const fetchData = useCallback(async (rombelid?: string) => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
-      if (rombelId) params.set('rombelId', rombelId)
+      if (rombelid) params.set('rombelid', rombelid)
       const res = await fetch(`/api/analisa-jurusan?${params}`)
       const json = await res.json()
       setStudents(json.students || [])
@@ -446,8 +446,8 @@ export function RekomendasiJurusanPage() {
                   <TableBody>
                     {paginatedStudents.map((s, idx) => (
                       <TableRow
-                        key={s.siswaId}
-                        className={`cursor-pointer hover:bg-muted/50 ${selectedStudent?.siswaId === s.siswaId ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : ''}`}
+                        key={s.siswaid}
+                        className={`cursor-pointer hover:bg-muted/50 ${selectedStudent?.siswaid === s.siswaid ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : ''}`}
                         onClick={() => setSelectedStudent(s)}
                       >
                         <TableCell className="text-center text-muted-foreground">{(page - 1) * PAGE_SIZE + idx + 1}</TableCell>
@@ -528,7 +528,7 @@ export function RekomendasiJurusanPage() {
                       const ipaWidth = (s.ipaScore / maxScore) * 100
                       const ipsWidth = (s.ipsScore / maxScore) * 100
                       return (
-                        <TableRow key={s.siswaId}>
+                        <TableRow key={s.siswaid}>
                           <TableCell className="text-muted-foreground">{(page - 1) * PAGE_SIZE + idx + 1}</TableCell>
                           <TableCell>
                             <p className="font-medium text-sm">{s.nama}</p>

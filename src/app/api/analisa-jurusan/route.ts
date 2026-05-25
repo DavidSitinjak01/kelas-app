@@ -91,17 +91,17 @@ function getSubjectCategory(mapel: string): {
 }
 
 interface StudentNilai {
-  siswaId: string
+  siswaid: string
   nama: string
   nis: string
   nisn: string
   rombelNama: string
-  rombelId: string
-  values: { mataPelajaran: string; rerata: number; category: 'ipa' | 'ips' | 'neutral' | 'excluded'; ipaWeight: number; ipsWeight: number }[]
+  rombelid: string
+  values: { matapelajaran: string; rerata: number; category: 'ipa' | 'ips' | 'neutral' | 'excluded'; ipaWeight: number; ipsWeight: number }[]
 }
 
 interface AnalysisResult {
-  siswaId: string
+  siswaid: string
   nama: string
   nis: string
   nisn: string
@@ -461,7 +461,7 @@ function generateReasoningV2(
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const rombelId = searchParams.get('rombelId')
+    const rombelid = searchParams.get('rombelid')
 
     // Get all kelas 10 rombels
     const rombels = await db.rombel.findMany({
@@ -478,8 +478,8 @@ export async function GET(request: Request) {
     }
 
     // Filter by rombel if specified
-    const targetRombels = rombelId
-      ? rombels.filter(r => r.id === rombelId)
+    const targetRombels = rombelid
+      ? rombels.filter(r => r.id === rombelid)
       : rombels
 
     const allSiswaIds = targetRombels.flatMap(r => r.siswa.map(s => s.id))
@@ -495,7 +495,7 @@ export async function GET(request: Request) {
     // Fetch all nilai for these students
     const nilaiData = await db.nilai.findMany({
       where: {
-        siswaId: { in: allSiswaIds },
+        siswaid: { in: allSiswaIds },
       },
       include: {
         siswa: { include: { rombel: true } },
@@ -506,22 +506,22 @@ export async function GET(request: Request) {
     const siswaNilaiMap = new Map<string, StudentNilai>()
 
     for (const nilai of nilaiData) {
-      const sid = nilai.siswaId
+      const sid = nilai.siswaid
       if (!siswaNilaiMap.has(sid)) {
         siswaNilaiMap.set(sid, {
-          siswaId: sid,
+          siswaid: sid,
           nama: nilai.siswa.nama,
           nis: nilai.siswa.nis,
           nisn: nilai.siswa.nisn,
           rombelNama: nilai.siswa.rombel.nama,
-          rombelId: nilai.siswa.rombel.id,
+          rombelid: nilai.siswa.rombel.id,
           values: [],
         })
       }
 
-      const category = getSubjectCategory(nilai.mataPelajaran)
+      const category = getSubjectCategory(nilai.matapelajaran)
       siswaNilaiMap.get(sid)!.values.push({
-        mataPelajaran: nilai.mataPelajaran,
+        matapelajaran: nilai.matapelajaran,
         rerata: nilai.rerata,
         category: category.type,
         ipaWeight: category.ipaWeight,
@@ -534,12 +534,12 @@ export async function GET(request: Request) {
       for (const siswa of rombel.siswa) {
         if (!siswaNilaiMap.has(siswa.id)) {
           siswaNilaiMap.set(siswa.id, {
-            siswaId: siswa.id,
+            siswaid: siswa.id,
             nama: siswa.nama,
             nis: siswa.nis,
             nisn: siswa.nisn,
             rombelNama: rombel.nama,
-            rombelId: rombel.id,
+            rombelid: rombel.id,
             values: [],
           })
         }
@@ -552,19 +552,19 @@ export async function GET(request: Request) {
     for (const [sid, sn] of siswaNilaiMap) {
       const ipaSubjects = sn.values
         .filter(v => v.category === 'ipa')
-        .map(v => ({ mapel: v.mataPelajaran, rerata: v.rerata, weight: v.ipaWeight }))
+        .map(v => ({ mapel: v.matapelajaran, rerata: v.rerata, weight: v.ipaWeight }))
 
       const ipsSubjects = sn.values
         .filter(v => v.category === 'ips')
-        .map(v => ({ mapel: v.mataPelajaran, rerata: v.rerata, weight: v.ipsWeight }))
+        .map(v => ({ mapel: v.matapelajaran, rerata: v.rerata, weight: v.ipsWeight }))
 
       const neutralSubjects = sn.values
         .filter(v => v.category === 'neutral')
-        .map(v => ({ mapel: v.mataPelajaran, rerata: v.rerata }))
+        .map(v => ({ mapel: v.matapelajaran, rerata: v.rerata }))
 
       const excludedSubjects = sn.values
         .filter(v => v.category === 'excluded')
-        .map(v => ({ mapel: v.mataPelajaran, rerata: v.rerata }))
+        .map(v => ({ mapel: v.matapelajaran, rerata: v.rerata }))
 
       // Calculate weighted averages
       // IPA: core IPA + neutral contribution
@@ -604,10 +604,10 @@ export async function GET(request: Request) {
       let ipsTrend = 0
 
       const ipaNilaiRecords = nilaiData.filter(
-        n => n.siswaId === sid && getSubjectCategory(n.mataPelajaran).type === 'ipa'
+        n => n.siswaid === sid && getSubjectCategory(n.matapelajaran).type === 'ipa'
       )
       const ipsNilaiRecords = nilaiData.filter(
-        n => n.siswaId === sid && getSubjectCategory(n.mataPelajaran).type === 'ips'
+        n => n.siswaid === sid && getSubjectCategory(n.matapelajaran).type === 'ips'
       )
 
       // Simple trend: compare first half (smt1-3) vs second half (smt4-6) averages
@@ -665,7 +665,7 @@ export async function GET(request: Request) {
       )
 
       results.push({
-        siswaId: sid,
+        siswaid: sid,
         nama: sn.nama,
         nis: sn.nis,
         nisn: sn.nisn,

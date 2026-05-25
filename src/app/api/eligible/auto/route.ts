@@ -65,9 +65,9 @@ export async function POST() {
       }
 
       await db.eligible.upsert({
-        where: { siswaId: siswa.id },
+        where: { siswaid: siswa.id },
         update: { status, keterangan },
-        create: { siswaId: siswa.id, status, keterangan },
+        create: { siswaid: siswa.id, status, keterangan },
       })
       updated++
     }

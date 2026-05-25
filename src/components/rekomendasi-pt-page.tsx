@@ -11,8 +11,8 @@ import { Separator } from '@/components/ui/separator'
 import { Building2, Sparkles, Loader2 } from 'lucide-react'
 
 interface Rombel { id: string; nama: string; kelas: number; jurusan: string }
-interface Siswa { id: string; nis: string; nama: string; rombelId: string; rombel: Rombel }
-interface Nilai { id: string; siswaId: string; mataPelajaran: string; rerata: number }
+interface Siswa { id: string; nis: string; nama: string; rombelid: string; rombel: Rombel }
+interface Nilai { id: string; siswaid: string; matapelajaran: string; rerata: number }
 
 export function RekomendasiPtPage() {
   const [siswaList, setSiswaList] = useState<Siswa[]>([])
@@ -31,7 +31,7 @@ export function RekomendasiPtPage() {
         const rombelJson = await rombelRes.json()
         const allSiswa: Siswa[] = []
         for (const r of rombelJson) {
-          const siswaRes = await fetch(`/api/siswa?rombelId=${r.id}&limit=100`)
+          const siswaRes = await fetch(`/api/siswa?rombelid=${r.id}&limit=100`)
           const siswaJson = await siswaRes.json()
           if (siswaJson.data) allSiswa.push(...siswaJson.data)
           else if (Array.isArray(siswaJson)) allSiswa.push(...siswaJson)
@@ -47,7 +47,7 @@ export function RekomendasiPtPage() {
 
   useEffect(() => {
     if (selectedSiswa) {
-      fetch(`/api/nilai?siswaId=${selectedSiswa}`)
+      fetch(`/api/nilai?siswaid=${selectedSiswa}`)
         .then(res => res.json())
         .then(data => setNilaiSiswa(data))
         .catch(() => setNilaiSiswa([]))
@@ -70,7 +70,7 @@ export function RekomendasiPtPage() {
           jurusan: selectedSiswaData.rombel?.jurusan,
           jurusanMinat: jurusanMinat || undefined,
           nilai: nilaiSiswa.map(n => ({
-            mapel: n.mataPelajaran,
+            mapel: n.matapelajaran,
             rerata: n.rerata,
           })),
         }),
@@ -144,7 +144,7 @@ export function RekomendasiPtPage() {
                 <div className="flex flex-wrap gap-2">
                   {nilaiSiswa.map(n => (
                     <Badge key={n.id} variant="outline" className="text-xs">
-                      {n.mataPelajaran}: {n.rerata}
+                      {n.matapelajaran}: {n.rerata}
                     </Badge>
                   ))}
                 </div>

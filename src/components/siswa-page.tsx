@@ -16,12 +16,12 @@ import { useToast } from '@/hooks/use-toast'
 
 interface Rombel { id: string; nama: string; kelas: number; jurusan: string }
 interface Siswa {
-  id: string; nis: string; nisn: string; nama: string; jenisKelamin: string
-  tempatLahir: string; tanggalLahir: string; rombelId: string
+  id: string; nis: string; nisn: string; nama: string; jeniskelamin: string
+  tempatlahir: string; tanggallahir: string; rombelid: string
   rombel: Rombel
 }
 
-const emptyForm = { nis: '', nisn: '', nama: '', jenisKelamin: 'L', tempatLahir: '', tanggalLahir: '', rombelId: '' }
+const emptyForm = { nis: '', nisn: '', nama: '', jeniskelamin: 'L', tempatlahir: '', tanggallahir: '', rombelid: '' }
 const PAGE_SIZE = 50
 
 export function SiswaPage() {
@@ -67,7 +67,7 @@ export function SiswaPage() {
       params.set('limit', String(PAGE_SIZE))
       params.set('page', String(page))
       if (search) params.set('search', search)
-      if (filterRombel !== 'all') params.set('rombelId', filterRombel)
+      if (filterRombel !== 'all') params.set('rombelid', filterRombel)
 
       const siswaRes = await fetch(`/api/siswa?${params}`)
       const siswaJson = await siswaRes.json()
@@ -137,10 +137,10 @@ export function SiswaPage() {
       nis: item.nis,
       nisn: item.nisn,
       nama: item.nama,
-      jenisKelamin: item.jenisKelamin,
-      tempatLahir: item.tempatLahir,
-      tanggalLahir: item.tanggalLahir,
-      rombelId: item.rombelId,
+      jeniskelamin: item.jeniskelamin,
+      tempatlahir: item.tempatlahir,
+      tanggallahir: item.tanggallahir,
+      rombelid: item.rombelid,
     })
     setOpen(true)
   }
@@ -360,7 +360,7 @@ export function SiswaPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Jenis Kelamin</Label>
-                    <Select value={form.jenisKelamin} onValueChange={v => setForm(f => ({ ...f, jenisKelamin: v }))}>
+                    <Select value={form.jeniskelamin} onValueChange={v => setForm(f => ({ ...f, jeniskelamin: v }))}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="L">Laki-laki</SelectItem>
@@ -370,7 +370,7 @@ export function SiswaPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Rombel</Label>
-                    <Select value={form.rombelId} onValueChange={v => setForm(f => ({ ...f, rombelId: v }))}>
+                    <Select value={form.rombelid} onValueChange={v => setForm(f => ({ ...f, rombelid: v }))}>
                       <SelectTrigger><SelectValue placeholder="Pilih Rombel" /></SelectTrigger>
                       <SelectContent>
                         {rombelList.map(r => (
@@ -387,14 +387,14 @@ export function SiswaPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Tempat Lahir</Label>
-                    <Input placeholder="Tempat lahir" value={form.tempatLahir} onChange={e => setForm(f => ({ ...f, tempatLahir: e.target.value }))} />
+                    <Input placeholder="Tempat lahir" value={form.tempatlahir} onChange={e => setForm(f => ({ ...f, tempatlahir: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
                     <Label>Tanggal Lahir</Label>
-                    <Input placeholder="YYYY-MM-DD" value={form.tanggalLahir} onChange={e => setForm(f => ({ ...f, tanggalLahir: e.target.value }))} />
+                    <Input placeholder="YYYY-MM-DD" value={form.tanggallahir} onChange={e => setForm(f => ({ ...f, tanggallahir: e.target.value }))} />
                   </div>
                 </div>
-                <Button onClick={handleSubmit} className="w-full" disabled={!form.nis || !form.nama || !form.rombelId}>
+                <Button onClick={handleSubmit} className="w-full" disabled={!form.nis || !form.nama || !form.rombelid}>
                   {editId ? 'Perbarui' : 'Simpan'}
                 </Button>
               </div>
@@ -629,8 +629,8 @@ export function SiswaPage() {
                     <TableCell className="font-mono text-sm">{item.nis}</TableCell>
                     <TableCell className="font-mono text-sm">{item.nisn !== '-' ? item.nisn : '-'}</TableCell>
                     <TableCell className="font-medium">{item.nama}</TableCell>
-                    <TableCell><Badge variant={item.jenisKelamin === 'L' ? 'default' : 'secondary'}>{item.jenisKelamin}</Badge></TableCell>
-                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{item.tempatLahir !== '-' ? item.tempatLahir : '-'}</TableCell>
+                    <TableCell><Badge variant={item.jeniskelamin === 'L' ? 'default' : 'secondary'}>{item.jeniskelamin}</Badge></TableCell>
+                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{item.tempatlahir !== '-' ? item.tempatlahir : '-'}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={kelasColor(item.rombel?.kelas ?? 10)}>
                         {item.rombel?.nama ?? '-'}

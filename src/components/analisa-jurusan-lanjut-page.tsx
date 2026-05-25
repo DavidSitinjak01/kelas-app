@@ -42,16 +42,16 @@ interface SubjectTrend {
 }
 
 interface TKAData {
-  bindoNilai: number; bindoKategori: string
-  matNilai: number; matKategori: string
-  bingNilai: number; bingKategori: string
-  pilihan1Nama: string; pilihan1Nilai: number; pilihan1Kategori: string
-  pilihan2Nama: string; pilihan2Nilai: number; pilihan2Kategori: string
+  bindonilai: number; bindokategori: string
+  matnilai: number; matkategori: string
+  bingnilai: number; bingkategori: string
+  pilihan1nama: string; pilihan1nilai: number; pilihan1kategori: string
+  pilihan2nama: string; pilihan2nilai: number; pilihan2kategori: string
 }
 
 interface AnalysisResult {
-  siswaId: string; nama: string; nis: string; nisn: string
-  rombelNama: string; rombelId: string; rombelJurusan: string; kelas: number
+  siswaid: string; nama: string; nis: string; nisn: string
+  rombelNama: string; rombelid: string; rombelJurusan: string; kelas: number
   ipaInclination: number
   ipsInclination: number
   dominantTrack: 'IPA' | 'IPS' | 'Seimbang'
@@ -162,12 +162,12 @@ export function AnalisaJurusanLanjutPage() {
   // DATA FETCHING
   // ============================================================
 
-  const fetchData = useCallback(async (k: number, rombelId?: string) => {
+  const fetchData = useCallback(async (k: number, rombelid?: string) => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
       params.set('kelas', String(k))
-      if (rombelId && rombelId !== 'all') params.set('rombelId', rombelId)
+      if (rombelid && rombelid !== 'all') params.set('rombelid', rombelid)
       const res = await fetch(`/api/analisa-jurusan-lanjut?${params}`)
       if (!res.ok) throw new Error('Gagal memuat data')
       const json = await res.json()
@@ -213,7 +213,7 @@ export function AnalisaJurusanLanjutPage() {
   const abortControllerRef = useRef<AbortController | null>(null)
   const aiTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const fetchAiAnalysis = async (siswaId: string) => {
+  const fetchAiAnalysis = async (siswaid: string) => {
     // Cancel any previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
@@ -241,7 +241,7 @@ export function AnalisaJurusanLanjutPage() {
       const res = await fetch('/api/analisa-jurusan-lanjut/detail', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ siswaId }),
+        body: JSON.stringify({ siswaid }),
         signal: controller.signal,
       })
       clearTimeout(timeoutId)
@@ -315,14 +315,14 @@ export function AnalisaJurusanLanjutPage() {
             </tr>
           </thead>
           <tbody>
-            <tr><td style="padding:8px;border:1px solid #ddd;">Bahasa Indonesia</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.bindoNilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.bindoKategori}</td></tr>
-            <tr><td style="padding:8px;border:1px solid #ddd;">Matematika</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.matNilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.matKategori}</td></tr>
-            <tr><td style="padding:8px;border:1px solid #ddd;">Bahasa Inggris</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.bingNilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.bingKategori}</td></tr>
-            <tr><td style="padding:8px;border:1px solid #ddd;">${student.tkaData.pilihan1Nama || 'Pilihan 1'}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.pilihan1Nilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.pilihan1Kategori}</td></tr>
-            <tr><td style="padding:8px;border:1px solid #ddd;">${student.tkaData.pilihan2Nama || 'Pilihan 2'}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.pilihan2Nilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.pilihan2Kategori}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;">Bahasa Indonesia</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.bindonilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.bindokategori}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;">Matematika</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.matnilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.matkategori}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;">Bahasa Inggris</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.bingnilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.bingkategori}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;">${student.tkaData.pilihan1nama || 'Pilihan 1'}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.pilihan1nilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.pilihan1kategori}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;">${student.tkaData.pilihan2nama || 'Pilihan 2'}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;font-weight:bold;">${student.tkaData.pilihan2nilai}</td><td style="text-align:center;padding:8px;border:1px solid #ddd;">${student.tkaData.pilihan2kategori}</td></tr>
           </tbody>
         </table>
-        <p style="font-size:11px;color:#6b7280;margin-top:6px;">Rata-rata Wajib: ${((student.tkaData.bindoNilai + student.tkaData.matNilai + student.tkaData.bingNilai) / 3).toFixed(1)}</p>
+        <p style="font-size:11px;color:#6b7280;margin-top:6px;">Rata-rata Wajib: ${((student.tkaData.bindonilai + student.tkaData.matnilai + student.tkaData.bingnilai) / 3).toFixed(1)}</p>
       </div>
     ` : ''
 
@@ -756,10 +756,10 @@ export function AnalisaJurusanLanjutPage() {
                     const top3 = s.topMajors[2]
                     const top4 = s.topMajors[3]
                     const top5 = s.topMajors[4]
-                    const isSelected = selectedStudent?.siswaId === s.siswaId
+                    const isSelected = selectedStudent?.siswaid === s.siswaid
                     return (
                       <TableRow
-                        key={s.siswaId}
+                        key={s.siswaid}
                         className={`cursor-pointer hover:bg-muted/50 transition-colors ${isSelected ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : ''} ${!s.hasNilai ? 'opacity-50' : ''}`}
                         onClick={() => {
                           setSelectedStudent(s)
@@ -1172,50 +1172,50 @@ export function AnalisaJurusanLanjutPage() {
                         <Card className="border-purple-100">
                           <CardContent className="p-2.5 text-center">
                             <p className="text-[10px] text-muted-foreground mb-0.5">B. Indonesia</p>
-                            <p className={`text-lg font-bold ${scoreColor(selectedStudent.tkaData.bindoNilai)}`}>
-                              {selectedStudent.tkaData.bindoNilai}
+                            <p className={`text-lg font-bold ${scoreColor(selectedStudent.tkaData.bindonilai)}`}>
+                              {selectedStudent.tkaData.bindonilai}
                             </p>
-                            {tkaKategoriBadge(selectedStudent.tkaData.bindoKategori)}
+                            {tkaKategoriBadge(selectedStudent.tkaData.bindokategori)}
                           </CardContent>
                         </Card>
                         {/* Matematika */}
                         <Card className="border-purple-100">
                           <CardContent className="p-2.5 text-center">
                             <p className="text-[10px] text-muted-foreground mb-0.5">Matematika</p>
-                            <p className={`text-lg font-bold ${scoreColor(selectedStudent.tkaData.matNilai)}`}>
-                              {selectedStudent.tkaData.matNilai}
+                            <p className={`text-lg font-bold ${scoreColor(selectedStudent.tkaData.matnilai)}`}>
+                              {selectedStudent.tkaData.matnilai}
                             </p>
-                            {tkaKategoriBadge(selectedStudent.tkaData.matKategori)}
+                            {tkaKategoriBadge(selectedStudent.tkaData.matkategori)}
                           </CardContent>
                         </Card>
                         {/* B. Inggris */}
                         <Card className="border-purple-100">
                           <CardContent className="p-2.5 text-center">
                             <p className="text-[10px] text-muted-foreground mb-0.5">B. Inggris</p>
-                            <p className={`text-lg font-bold ${scoreColor(selectedStudent.tkaData.bingNilai)}`}>
-                              {selectedStudent.tkaData.bingNilai}
+                            <p className={`text-lg font-bold ${scoreColor(selectedStudent.tkaData.bingnilai)}`}>
+                              {selectedStudent.tkaData.bingnilai}
                             </p>
-                            {tkaKategoriBadge(selectedStudent.tkaData.bingKategori)}
+                            {tkaKategoriBadge(selectedStudent.tkaData.bingkategori)}
                           </CardContent>
                         </Card>
                         {/* Pilihan 1 */}
                         <Card className="border-purple-100">
                           <CardContent className="p-2.5 text-center">
-                            <p className="text-[10px] text-muted-foreground mb-0.5 truncate">{selectedStudent.tkaData.pilihan1Nama || 'Pilihan 1'}</p>
-                            <p className={`text-lg font-bold ${scoreColor(selectedStudent.tkaData.pilihan1Nilai)}`}>
-                              {selectedStudent.tkaData.pilihan1Nilai}
+                            <p className="text-[10px] text-muted-foreground mb-0.5 truncate">{selectedStudent.tkaData.pilihan1nama || 'Pilihan 1'}</p>
+                            <p className={`text-lg font-bold ${scoreColor(selectedStudent.tkaData.pilihan1nilai)}`}>
+                              {selectedStudent.tkaData.pilihan1nilai}
                             </p>
-                            {tkaKategoriBadge(selectedStudent.tkaData.pilihan1Kategori)}
+                            {tkaKategoriBadge(selectedStudent.tkaData.pilihan1kategori)}
                           </CardContent>
                         </Card>
                         {/* Pilihan 2 */}
                         <Card className="border-purple-100">
                           <CardContent className="p-2.5 text-center">
-                            <p className="text-[10px] text-muted-foreground mb-0.5 truncate">{selectedStudent.tkaData.pilihan2Nama || 'Pilihan 2'}</p>
-                            <p className={`text-lg font-bold ${scoreColor(selectedStudent.tkaData.pilihan2Nilai)}`}>
-                              {selectedStudent.tkaData.pilihan2Nilai}
+                            <p className="text-[10px] text-muted-foreground mb-0.5 truncate">{selectedStudent.tkaData.pilihan2nama || 'Pilihan 2'}</p>
+                            <p className={`text-lg font-bold ${scoreColor(selectedStudent.tkaData.pilihan2nilai)}`}>
+                              {selectedStudent.tkaData.pilihan2nilai}
                             </p>
-                            {tkaKategoriBadge(selectedStudent.tkaData.pilihan2Kategori)}
+                            {tkaKategoriBadge(selectedStudent.tkaData.pilihan2kategori)}
                           </CardContent>
                         </Card>
                       </div>
@@ -1223,14 +1223,14 @@ export function AnalisaJurusanLanjutPage() {
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[11px] text-muted-foreground">Rata-rata Wajib:</span>
                         <span className={`text-xs font-semibold ${scoreColor(
-                          (selectedStudent.tkaData.bindoNilai + selectedStudent.tkaData.matNilai + selectedStudent.tkaData.bingNilai) / 3
+                          (selectedStudent.tkaData.bindonilai + selectedStudent.tkaData.matnilai + selectedStudent.tkaData.bingnilai) / 3
                         )}`}>
-                          {((selectedStudent.tkaData.bindoNilai + selectedStudent.tkaData.matNilai + selectedStudent.tkaData.bingNilai) / 3).toFixed(1)}
+                          {((selectedStudent.tkaData.bindonilai + selectedStudent.tkaData.matnilai + selectedStudent.tkaData.bingnilai) / 3).toFixed(1)}
                         </span>
                         <span className="text-[11px] text-muted-foreground ml-2">Pilihan:</span>
                         <span className="text-xs font-medium">
-                          {selectedStudent.tkaData.pilihan1Nama} ({selectedStudent.tkaData.pilihan1Nilai})
-                          {selectedStudent.tkaData.pilihan2Nama && ` & ${selectedStudent.tkaData.pilihan2Nama} (${selectedStudent.tkaData.pilihan2Nilai})`}
+                          {selectedStudent.tkaData.pilihan1nama} ({selectedStudent.tkaData.pilihan1nilai})
+                          {selectedStudent.tkaData.pilihan2nama && ` & ${selectedStudent.tkaData.pilihan2nama} (${selectedStudent.tkaData.pilihan2nilai})`}
                         </span>
                       </div>
                     </div>
@@ -1286,7 +1286,7 @@ export function AnalisaJurusanLanjutPage() {
                     </p>
                     <Button
                       size="sm"
-                      onClick={() => fetchAiAnalysis(selectedStudent.siswaId)}
+                      onClick={() => fetchAiAnalysis(selectedStudent.siswaid)}
                       disabled={aiLoading}
                       className="gap-1.5"
                     >

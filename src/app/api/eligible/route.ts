@@ -18,13 +18,13 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const data = await db.eligible.upsert({
-      where: { siswaId: body.siswaId },
+      where: { siswaid: body.siswaid },
       update: {
         status: body.status,
         keterangan: body.keterangan ?? null,
       },
       create: {
-        siswaId: body.siswaId,
+        siswaid: body.siswaid,
         status: body.status,
         keterangan: body.keterangan ?? null,
       },
@@ -40,8 +40,8 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const body = await request.json()
-    if (body.siswaId) {
-      await db.eligible.deleteMany({ where: { siswaId: body.siswaId } })
+    if (body.siswaid) {
+      await db.eligible.deleteMany({ where: { siswaid: body.siswaid } })
     } else if (body.id) {
       await db.eligible.delete({ where: { id: body.id } })
     }

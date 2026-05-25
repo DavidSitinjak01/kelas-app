@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     // Phase 1: Parse all Excel files and collect siswa IDs
     const siswaIdsToReplace: string[] = []
     const parsedRows: {
-      siswaId: string
+      siswaid: string
       nama: string
       subject: string
       smt1: number; smt2: number; smt3: number; smt4: number; smt5: number; smt6: number
@@ -116,25 +116,25 @@ export async function POST(request: Request) {
         if (!nama || !nis) continue
 
         // Find the siswa by NIS first, then by NISN
-        let siswaId: string | null = null
+        let siswaid: string | null = null
         const siswaByNis = await db.siswa.findFirst({ where: { nis } })
         if (siswaByNis) {
-          siswaId = siswaByNis.id
+          siswaid = siswaByNis.id
         } else if (nisn && nisn !== '-') {
           const siswaByNisn = await db.siswa.findFirst({ where: { nisn } })
           if (siswaByNisn) {
-            siswaId = siswaByNisn.id
+            siswaid = siswaByNisn.id
           }
         }
 
-        if (!siswaId) {
+        if (!siswaid) {
           errors.push(`Siswa tidak ditemukan: ${nama} (NIS: ${nis}, NISN: ${nisn})`)
           totalNilaiSkipped += subjects.length
           continue
         }
 
         // Track siswa ID for scoped deletion
-        siswaIdsToReplace.push(siswaId)
+        siswaIdsToReplace.push(siswaid)
 
         for (const subject of subjects) {
           const sc = subject.startCol
@@ -156,7 +156,7 @@ export async function POST(request: Request) {
           const calcRerata = rerata > 0 ? rerata : (vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0)
 
           parsedRows.push({
-            siswaId,
+            siswaid,
             nama,
             subject: subject.name,
             smt1,
@@ -180,7 +180,7 @@ export async function POST(request: Request) {
       for (let i = 0; i < uniqueSiswaIds.length; i += batchSize) {
         const batch = uniqueSiswaIds.slice(i, i + batchSize)
         await db.nilai.deleteMany({
-          where: { siswaId: { in: batch } },
+          where: { siswaid: { in: batch } },
         })
       }
     }
@@ -190,14 +190,14 @@ export async function POST(request: Request) {
       try {
         await db.nilai.upsert({
           where: {
-            siswaId_mataPelajaran: {
-              siswaId: row.siswaId,
-              mataPelajaran: row.subject,
+            siswaid_matapelajaran: {
+              siswaid: row.siswaid,
+              matapelajaran: row.subject,
             },
           },
           create: {
-            siswaId: row.siswaId,
-            mataPelajaran: row.subject,
+            siswaid: row.siswaid,
+            matapelajaran: row.subject,
             smt1: row.smt1,
             smt2: row.smt2,
             smt3: row.smt3,

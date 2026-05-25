@@ -7,36 +7,36 @@ export async function GET(request: Request) {
     const distinct = searchParams.get('distinct')
 
     // Return distinct mata pelajaran list
-    if (distinct === 'mataPelajaran') {
-      const rombelId = searchParams.get('rombelId')
+    if (distinct === 'matapelajaran') {
+      const rombelid = searchParams.get('rombelid')
       const where: Record<string, unknown> = {}
-      if (rombelId) where.siswa = { rombelId }
+      if (rombelid) where.siswa = { rombelid }
 
       const result = await db.nilai.findMany({
         where,
-        select: { mataPelajaran: true },
-        distinct: ['mataPelajaran'],
-        orderBy: [{ mataPelajaran: 'asc' }],
+        select: { matapelajaran: true },
+        distinct: ['matapelajaran'],
+        orderBy: [{ matapelajaran: 'asc' }],
       })
-      return NextResponse.json(result.map(r => r.mataPelajaran))
+      return NextResponse.json(result.map(r => r.matapelajaran))
     }
 
-    const siswaId = searchParams.get('siswaId')
-    const rombelId = searchParams.get('rombelId')
-    const mataPelajaran = searchParams.get('mataPelajaran')
+    const siswaid = searchParams.get('siswaid')
+    const rombelid = searchParams.get('rombelid')
+    const matapelajaran = searchParams.get('matapelajaran')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
 
     const where: Record<string, unknown> = {}
-    if (siswaId) where.siswaId = siswaId
-    if (rombelId) where.siswa = { rombelId }
-    if (mataPelajaran) where.mataPelajaran = mataPelajaran
+    if (siswaid) where.siswaid = siswaid
+    if (rombelid) where.siswa = { rombelid }
+    if (matapelajaran) where.matapelajaran = matapelajaran
 
     const [data, total] = await Promise.all([
       db.nilai.findMany({
         where,
         include: { siswa: { include: { rombel: true } } },
-        orderBy: [{ mataPelajaran: 'asc' }, { siswa: { nama: 'asc' } }],
+        orderBy: [{ matapelajaran: 'asc' }, { siswa: { nama: 'asc' } }],
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -67,8 +67,8 @@ export async function POST(request: Request) {
 
     const data = await db.nilai.create({
       data: {
-        siswaId: body.siswaId,
-        mataPelajaran: body.mataPelajaran,
+        siswaid: body.siswaid,
+        matapelajaran: body.matapelajaran,
         smt1,
         smt2,
         smt3,
@@ -100,7 +100,7 @@ export async function PUT(request: Request) {
     const rerata = body.rerata !== undefined ? parseFloat(body.rerata) : undefined
 
     const updateData: Record<string, unknown> = {
-      mataPelajaran: body.mataPelajaran,
+      matapelajaran: body.matapelajaran,
     }
     if (smt1 !== undefined) updateData.smt1 = smt1
     if (smt2 !== undefined) updateData.smt2 = smt2

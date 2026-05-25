@@ -5,7 +5,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || 'kelas'
-    const rombelId = searchParams.get('rombelId')
+    const rombelid = searchParams.get('rombelid')
     const tingkat = searchParams.get('tingkat')
 
     // Summary: which tingkat levels and rombels have nilai data
@@ -15,28 +15,28 @@ export async function GET(request: Request) {
 
       // Get siswa counts per rombel
       const siswaCounts = await db.siswa.groupBy({
-        by: ['rombelId'],
-        where: { rombelId: { in: allRombelIds } },
+        by: ['rombelid'],
+        where: { rombelid: { in: allRombelIds } },
         _count: { id: true },
       })
-      const siswaCountMap = new Map(siswaCounts.map(s => [s.rombelId, s._count.id]))
+      const siswaCountMap = new Map(siswaCounts.map(s => [s.rombelid, s._count.id]))
 
       // Get nilai counts per rombel (via siswa)
       const nilaiPerSiswa = await db.nilai.findMany({
-        select: { siswaId: true },
+        select: { siswaid: true },
       })
-      // Get rombelId for each siswa that has nilai
-      const siswaIdsWithNilai = [...new Set(nilaiPerSiswa.map(n => n.siswaId))]
+      // Get rombelid for each siswa that has nilai
+      const siswaIdsWithNilai = [...new Set(nilaiPerSiswa.map(n => n.siswaid))]
       const siswaWithNilai = await db.siswa.findMany({
         where: { id: { in: siswaIdsWithNilai } },
-        select: { id: true, rombelId: true },
+        select: { id: true, rombelid: true },
       })
-      const siswaRombelMap = new Map(siswaWithNilai.map(s => [s.id, s.rombelId]))
+      const siswaRombelMap = new Map(siswaWithNilai.map(s => [s.id, s.rombelid]))
 
       // Count nilai per rombel
       const nilaiPerRombel = new Map<string, number>()
       for (const n of nilaiPerSiswa) {
-        const rId = siswaRombelMap.get(n.siswaId)
+        const rId = siswaRombelMap.get(n.siswaid)
         if (rId) {
           nilaiPerRombel.set(rId, (nilaiPerRombel.get(rId) || 0) + 1)
         }
@@ -71,17 +71,17 @@ export async function GET(request: Request) {
       })
     }
 
-    if (type === 'kelas' && rombelId) {
+    if (type === 'kelas' && rombelid) {
       // Get rombel info
-      const rombel = await db.rombel.findUnique({ where: { id: rombelId } })
+      const rombel = await db.rombel.findUnique({ where: { id: rombelid } })
       if (!rombel) {
         return NextResponse.json({ type: 'kelas', rombel: null, data: [] })
       }
 
       // Get siswa in this rombel
       const siswaList = await db.siswa.findMany({
-        where: { rombelId },
-        select: { id: true, nama: true, nis: true, nisn: true, rombelId: true },
+        where: { rombelid },
+        select: { id: true, nama: true, nis: true, nisn: true, rombelid: true },
       })
 
       if (siswaList.length === 0) {
@@ -94,8 +94,8 @@ export async function GET(request: Request) {
 
       // Get nilai for these siswa using groupBy
       const nilaiAgg = await db.nilai.groupBy({
-        by: ['siswaId'],
-        where: { siswaId: { in: siswaList.map(s => s.id) } },
+        by: ['siswaid'],
+        where: { siswaid: { in: siswaList.map(s => s.id) } },
         _sum: { rerata: true },
         _count: { rerata: true },
       })
@@ -103,13 +103,13 @@ export async function GET(request: Request) {
       const siswaMap = new Map(siswaList.map(s => [s.id, s]))
       const ranked = nilaiAgg
         .map(n => {
-          const siswa = siswaMap.get(n.siswaId)
+          const siswa = siswaMap.get(n.siswaid)
           return {
-            siswaId: n.siswaId,
+            siswaid: n.siswaid,
             nama: siswa?.nama || '-',
             nis: siswa?.nis || '-',
             nisn: siswa?.nisn || '-',
-            rombelId: rombelId,
+            rombelid: rombelid,
             rombelNama: rombel.nama,
             kelas: rombel.kelas,
             rataRata: n._count.rerata > 0 ? Math.round((n._sum.rerata! / n._count.rerata) * 100) / 100 : 0,
@@ -120,15 +120,15 @@ export async function GET(request: Request) {
         .map((s, idx) => ({ ...s, peringkat: idx + 1 }))
 
       // Also add siswa without nilai
-      const siswaWithNilai = new Set(nilaiAgg.map(n => n.siswaId))
+      const siswaWithNilai = new Set(nilaiAgg.map(n => n.siswaid))
       const siswaWithoutNilai = siswaList
         .filter(s => !siswaWithNilai.has(s.id))
         .map((s, idx) => ({
-          siswaId: s.id,
+          siswaid: s.id,
           nama: s.nama,
           nis: s.nis,
           nisn: s.nisn,
-          rombelId: rombelId,
+          rombelid: rombelid,
           rombelNama: rombel.nama,
           kelas: rombel.kelas,
           rataRata: 0,
@@ -157,8 +157,8 @@ export async function GET(request: Request) {
 
       // Get siswa in these rombels
       const siswaList = await db.siswa.findMany({
-        where: { rombelId: { in: rombelIds } },
-        select: { id: true, nama: true, nis: true, nisn: true, rombelId: true },
+        where: { rombelid: { in: rombelIds } },
+        select: { id: true, nama: true, nis: true, nisn: true, rombelid: true },
       })
 
       if (siswaList.length === 0) {
@@ -167,8 +167,8 @@ export async function GET(request: Request) {
 
       // Use groupBy for aggregation
       const nilaiAgg = await db.nilai.groupBy({
-        by: ['siswaId'],
-        where: { siswaId: { in: siswaList.map(s => s.id) } },
+        by: ['siswaid'],
+        where: { siswaid: { in: siswaList.map(s => s.id) } },
         _sum: { rerata: true },
         _count: { rerata: true },
       })
@@ -176,14 +176,14 @@ export async function GET(request: Request) {
       const siswaMap = new Map(siswaList.map(s => [s.id, s]))
       const ranked = nilaiAgg
         .map(n => {
-          const siswa = siswaMap.get(n.siswaId)
-          const rombel = siswa ? rombelMap.get(siswa.rombelId) : null
+          const siswa = siswaMap.get(n.siswaid)
+          const rombel = siswa ? rombelMap.get(siswa.rombelid) : null
           return {
-            siswaId: n.siswaId,
+            siswaid: n.siswaid,
             nama: siswa?.nama || '-',
             nis: siswa?.nis || '-',
             nisn: siswa?.nisn || '-',
-            rombelId: siswa?.rombelId || '-',
+            rombelid: siswa?.rombelid || '-',
             rombelNama: rombel?.nama || '-',
             kelas: kelasNum,
             rataRata: n._count.rerata > 0 ? Math.round((n._sum.rerata! / n._count.rerata) * 100) / 100 : 0,
@@ -196,15 +196,15 @@ export async function GET(request: Request) {
       // Rombel summary
       const rombelSummaryMap = new Map<string, { rombelNama: string; count: number; totalRataRata: number }>()
       for (const s of ranked) {
-        if (!rombelSummaryMap.has(s.rombelId)) {
-          rombelSummaryMap.set(s.rombelId, { rombelNama: s.rombelNama, count: 0, totalRataRata: 0 })
+        if (!rombelSummaryMap.has(s.rombelid)) {
+          rombelSummaryMap.set(s.rombelid, { rombelNama: s.rombelNama, count: 0, totalRataRata: 0 })
         }
-        const r = rombelSummaryMap.get(s.rombelId)!
+        const r = rombelSummaryMap.get(s.rombelid)!
         r.count++
         r.totalRataRata += s.rataRata
       }
       const rombelSummary = Array.from(rombelSummaryMap.entries()).map(([id, r]) => ({
-        rombelId: id,
+        rombelid: id,
         rombelNama: r.rombelNama,
         count: r.count,
         avgRataRata: r.count > 0 ? Math.round((r.totalRataRata / r.count) * 100) / 100 : 0,

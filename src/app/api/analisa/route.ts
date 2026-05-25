@@ -4,10 +4,10 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const rombelId = searchParams.get('rombelId')
+    const rombelid = searchParams.get('rombelid')
 
-    const where = rombelId && rombelId !== 'all'
-      ? { siswa: { rombelId } }
+    const where = rombelid && rombelid !== 'all'
+      ? { siswa: { rombelid } }
       : {}
 
     const nilai = await db.nilai.findMany({
@@ -27,10 +27,10 @@ export async function GET(request: Request) {
     // Rata-rata per mapel (using rerata from each subject)
     const mapelAgg: Record<string, number[]> = {}
     for (const n of nilai) {
-      if (!mapelAgg[n.mataPelajaran]) {
-        mapelAgg[n.mataPelajaran] = []
+      if (!mapelAgg[n.matapelajaran]) {
+        mapelAgg[n.matapelajaran] = []
       }
-      mapelAgg[n.mataPelajaran].push(n.rerata)
+      mapelAgg[n.matapelajaran].push(n.rerata)
     }
     const rataRataPerMapel = Object.entries(mapelAgg).map(([mapel, vals]) => ({
       mapel,
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
     // Per rombel
     const rombelAgg: Record<string, { vals: number[]; nama: string }> = {}
     for (const n of nilai) {
-      const rId = n.siswa.rombelId
+      const rId = n.siswa.rombelid
       const rNama = n.siswa.rombel?.nama ?? 'Unknown'
       if (!rombelAgg[rId]) rombelAgg[rId] = { vals: [], nama: rNama }
       rombelAgg[rId].vals.push(n.rerata)
@@ -67,7 +67,7 @@ export async function GET(request: Request) {
     // Top siswa
     const siswaAgg: Record<string, { nama: string; total: number; count: number }> = {}
     for (const n of nilai) {
-      const sId = n.siswaId
+      const sId = n.siswaid
       const sNama = n.siswa.nama
       if (!siswaAgg[sId]) siswaAgg[sId] = { nama: sNama, total: 0, count: 0 }
       siswaAgg[sId].total += n.rerata

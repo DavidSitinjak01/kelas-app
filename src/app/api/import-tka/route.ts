@@ -9,21 +9,21 @@ export const dynamic = 'force-dynamic'
 interface ParsedTKA {
   nisn: string
   nama: string
-  nomorPeserta: string
-  tanggalPelaksanaan: string
-  tkaId: string
-  bindoNilai: number
-  bindoKategori: string
-  matNilai: number
-  matKategori: string
-  bingNilai: number
-  bingKategori: string
-  pilihan1Nama: string
-  pilihan1Nilai: number
-  pilihan1Kategori: string
-  pilihan2Nama: string
-  pilihan2Nilai: number
-  pilihan2Kategori: string
+  nomorpeserta: string
+  tanggalpelaksanaan: string
+  tkaid: string
+  bindonilai: number
+  bindokategori: string
+  matnilai: number
+  matkategori: string
+  bingnilai: number
+  bingkategori: string
+  pilihan1nama: string
+  pilihan1nilai: number
+  pilihan1kategori: string
+  pilihan2nama: string
+  pilihan2nilai: number
+  pilihan2kategori: string
 }
 
 /**
@@ -123,16 +123,16 @@ function extractTKAFromText(text: string): ParsedTKA | null {
     const nama = extractAfterColon(lines, 'Nama')
 
     // Extract Nomor Peserta TKA - "Nomor Peserta TKA                    : T3-25-07-24-0001-0002-7"
-    const nomorPeserta = extractAfterColon(lines, 'Nomor Peserta TKA')
+    const nomorpeserta = extractAfterColon(lines, 'Nomor Peserta TKA')
 
     // Extract Tanggal Pelaksanaan - "Tanggal Pelaksanaan TKA              : 3 s.d 4 November 2025"
-    const tanggalPelaksanaan = extractAfterColon(lines, 'Tanggal Pelaksanaan TKA')
+    const tanggalpelaksanaan = extractAfterColon(lines, 'Tanggal Pelaksanaan TKA')
 
     // Extract TKA ID - "ID : TKA25-U2UVHL96R"
-    let tkaId = ''
+    let tkaid = ''
     for (const line of lines) {
       const match = line.match(/ID\s*:\s*(TKA\d+-\w+)/)
-      if (match) { tkaId = match[1]; break }
+      if (match) { tkaid = match[1]; break }
     }
 
     // Extract subjects and scores
@@ -168,21 +168,21 @@ function extractTKAFromText(text: string): ParsedTKA | null {
     const pilihanSubjects = subjects.filter(s => s.no > 3)
 
     // Map wajib subjects by name
-    let bindoNilai = 0, bindoKategori = '-'
-    let matNilai = 0, matKategori = '-'
-    let bingNilai = 0, bingKategori = '-'
+    let bindonilai = 0, bindokategori = '-'
+    let matnilai = 0, matkategori = '-'
+    let bingnilai = 0, bingkategori = '-'
 
     for (const s of wajibSubjects) {
       const nameLower = s.nama.toLowerCase()
       if (nameLower.includes('bahasa indonesia') || nameLower.includes('b. indonesia') || nameLower.includes('bindo')) {
-        bindoNilai = s.nilai
-        bindoKategori = s.kategori
+        bindonilai = s.nilai
+        bindokategori = s.kategori
       } else if (nameLower.includes('bahasa inggris') || nameLower.includes('b. inggris') || nameLower.includes('bing')) {
-        bingNilai = s.nilai
-        bingKategori = s.kategori
+        bingnilai = s.nilai
+        bingkategori = s.kategori
       } else if (nameLower.includes('matematika') && !nameLower.includes('lanjut')) {
-        matNilai = s.nilai
-        matKategori = s.kategori
+        matnilai = s.nilai
+        matkategori = s.kategori
       }
     }
 
@@ -198,21 +198,21 @@ function extractTKAFromText(text: string): ParsedTKA | null {
     return {
       nisn,
       nama,
-      nomorPeserta: nomorPeserta || '-',
-      tanggalPelaksanaan: tanggalPelaksanaan || '-',
-      tkaId: tkaId || '-',
-      bindoNilai,
-      bindoKategori,
-      matNilai,
-      matKategori,
-      bingNilai,
-      bingKategori,
-      pilihan1Nama: p1?.nama || '-',
-      pilihan1Nilai: p1?.nilai || 0,
-      pilihan1Kategori: p1?.kategori || '-',
-      pilihan2Nama: p2?.nama || '-',
-      pilihan2Nilai: p2?.nilai || 0,
-      pilihan2Kategori: p2?.kategori || '-',
+      nomorpeserta: nomorpeserta || '-',
+      tanggalpelaksanaan: tanggalpelaksanaan || '-',
+      tkaid: tkaid || '-',
+      bindonilai,
+      bindokategori,
+      matnilai,
+      matkategori,
+      bingnilai,
+      bingkategori,
+      pilihan1nama: p1?.nama || '-',
+      pilihan1nilai: p1?.nilai || 0,
+      pilihan1kategori: p1?.kategori || '-',
+      pilihan2nama: p2?.nama || '-',
+      pilihan2nilai: p2?.nilai || 0,
+      pilihan2kategori: p2?.kategori || '-',
     }
   } catch (error) {
     console.error('Error extracting TKA from text:', error)
@@ -329,46 +329,46 @@ export async function POST(request: Request) {
 
         // Check if TKA record already exists for this student
         const existingTka = await db.tKA.findUnique({
-          where: { siswaId: siswa.id },
+          where: { siswaid: siswa.id },
         })
 
         // Upsert TKA record
         await db.tKA.upsert({
-          where: { siswaId: siswa.id },
+          where: { siswaid: siswa.id },
           create: {
-            siswaId: siswa.id,
-            nomorPeserta: parsed.nomorPeserta,
-            tanggalPelaksanaan: parsed.tanggalPelaksanaan,
-            tkaId: parsed.tkaId,
-            bindoNilai: parsed.bindoNilai,
-            bindoKategori: parsed.bindoKategori,
-            matNilai: parsed.matNilai,
-            matKategori: parsed.matKategori,
-            bingNilai: parsed.bingNilai,
-            bingKategori: parsed.bingKategori,
-            pilihan1Nama: parsed.pilihan1Nama,
-            pilihan1Nilai: parsed.pilihan1Nilai,
-            pilihan1Kategori: parsed.pilihan1Kategori,
-            pilihan2Nama: parsed.pilihan2Nama,
-            pilihan2Nilai: parsed.pilihan2Nilai,
-            pilihan2Kategori: parsed.pilihan2Kategori,
+            siswaid: siswa.id,
+            nomorpeserta: parsed.nomorpeserta,
+            tanggalpelaksanaan: parsed.tanggalpelaksanaan,
+            tkaid: parsed.tkaid,
+            bindonilai: parsed.bindonilai,
+            bindokategori: parsed.bindokategori,
+            matnilai: parsed.matnilai,
+            matkategori: parsed.matkategori,
+            bingnilai: parsed.bingnilai,
+            bingkategori: parsed.bingkategori,
+            pilihan1nama: parsed.pilihan1nama,
+            pilihan1nilai: parsed.pilihan1nilai,
+            pilihan1kategori: parsed.pilihan1kategori,
+            pilihan2nama: parsed.pilihan2nama,
+            pilihan2nilai: parsed.pilihan2nilai,
+            pilihan2kategori: parsed.pilihan2kategori,
           },
           update: {
-            nomorPeserta: parsed.nomorPeserta,
-            tanggalPelaksanaan: parsed.tanggalPelaksanaan,
-            tkaId: parsed.tkaId,
-            bindoNilai: parsed.bindoNilai,
-            bindoKategori: parsed.bindoKategori,
-            matNilai: parsed.matNilai,
-            matKategori: parsed.matKategori,
-            bingNilai: parsed.bingNilai,
-            bingKategori: parsed.bingKategori,
-            pilihan1Nama: parsed.pilihan1Nama,
-            pilihan1Nilai: parsed.pilihan1Nilai,
-            pilihan1Kategori: parsed.pilihan1Kategori,
-            pilihan2Nama: parsed.pilihan2Nama,
-            pilihan2Nilai: parsed.pilihan2Nilai,
-            pilihan2Kategori: parsed.pilihan2Kategori,
+            nomorpeserta: parsed.nomorpeserta,
+            tanggalpelaksanaan: parsed.tanggalpelaksanaan,
+            tkaid: parsed.tkaid,
+            bindonilai: parsed.bindonilai,
+            bindokategori: parsed.bindokategori,
+            matnilai: parsed.matnilai,
+            matkategori: parsed.matkategori,
+            bingnilai: parsed.bingnilai,
+            bingkategori: parsed.bingkategori,
+            pilihan1nama: parsed.pilihan1nama,
+            pilihan1nilai: parsed.pilihan1nilai,
+            pilihan1kategori: parsed.pilihan1kategori,
+            pilihan2nama: parsed.pilihan2nama,
+            pilihan2nilai: parsed.pilihan2nilai,
+            pilihan2kategori: parsed.pilihan2kategori,
           },
         })
 

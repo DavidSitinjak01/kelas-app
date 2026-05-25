@@ -22,8 +22,8 @@ export async function POST(request: Request) {
         nama: body.nama,
         kelas: parseInt(body.kelas),
         jurusan: body.jurusan,
-        tahunAjaran: body.tahunAjaran,
-        waliKelas: body.waliKelas,
+        tahunajaran: body.tahunajaran,
+        walikelas: body.walikelas,
       },
     })
     return NextResponse.json(data)
@@ -42,8 +42,8 @@ export async function PUT(request: Request) {
         nama: body.nama,
         kelas: parseInt(body.kelas),
         jurusan: body.jurusan,
-        tahunAjaran: body.tahunAjaran,
-        waliKelas: body.waliKelas,
+        tahunajaran: body.tahunajaran,
+        walikelas: body.walikelas,
       },
     })
     return NextResponse.json(data)

@@ -11,13 +11,15 @@ datasource db {
 model Rombel {
   id          String   @id @default(cuid())
   nama        String
-  kelas       Int      // 10, 11, 12
-  jurusan     String   // IPA, IPS, Bahasa, Umum
-  tahunAjaran String
-  waliKelas   String
+  kelas       Int
+  jurusan     String
+  tahunajaran String   @map("tahunajaran")
+  walikelas   String   @map("walikelas")
   siswa       Siswa[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdat   DateTime @default(now()) @map("createdat")
+  updatedat   DateTime @updatedAt @map("updatedat")
+
+  @@map("rombel")
 }
 
 model Siswa {
@@ -25,68 +27,72 @@ model Siswa {
   nis           String   @unique
   nisn          String   @default("-")
   nama          String
-  jenisKelamin  String   // L, P
-  tempatLahir   String   @default("-")
-  tanggalLahir  String   @default("-")
-  rombelId      String
-  rombel        Rombel   @relation(fields: [rombelId], references: [id], onDelete: Cascade)
+  jeniskelamin  String   @map("jeniskelamin")
+  tempatlahir   String   @default("-") @map("tempatlahir")
+  tanggallahir  String   @default("-") @map("tanggallahir")
+  rombelid      String   @map("rombelid")
+  rombel        Rombel   @relation(fields: [rombelid], references: [id], onDelete: Cascade)
   nilai         Nilai[]
   eligible      Eligible?
   tka           TKA?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdat     DateTime @default(now()) @map("createdat")
+  updatedat     DateTime @updatedAt @map("updatedat")
+
+  @@map("siswa")
 }
 
 model Nilai {
-  id            String   @id @default(cuid())
-  siswaId       String
-  siswa         Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
-  mataPelajaran String
-  smt1          Float    @default(0)
-  smt2          Float    @default(0)
-  smt3          Float    @default(0)
-  smt4          Float    @default(0)
-  smt5          Float    @default(0)
-  smt6          Float    @default(0)
-  rerata        Float    @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(cuid())
+  siswaid        String   @map("siswaid")
+  siswa          Siswa    @relation(fields: [siswaid], references: [id], onDelete: Cascade)
+  matapelajaran  String   @map("matapelajaran")
+  smt1           Float    @default(0)
+  smt2           Float    @default(0)
+  smt3           Float    @default(0)
+  smt4           Float    @default(0)
+  smt5           Float    @default(0)
+  smt6           Float    @default(0)
+  rerata         Float    @default(0)
+  createdat      DateTime @default(now()) @map("createdat")
+  updatedat      DateTime @updatedAt @map("updatedat")
 
-  @@unique([siswaId, mataPelajaran])
+  @@unique([siswaid, matapelajaran])
+  @@map("nilai")
 }
 
 model Eligible {
-  id          String   @id @default(cuid())
-  siswaId     String   @unique
-  siswa       Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
-  status      String   // eligible, tidak, bersyarat
-  keterangan  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  siswaid    String   @unique @map("siswaid")
+  siswa      Siswa    @relation(fields: [siswaid], references: [id], onDelete: Cascade)
+  status     String
+  keterangan String?
+  createdat  DateTime @default(now()) @map("createdat")
+  updatedat  DateTime @updatedAt @map("updatedat")
+
+  @@map("eligible")
 }
 
 model TKA {
-  id                    String   @id @default(cuid())
-  siswaId               String   @unique
-  siswa                 Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
-  nomorPeserta          String   @default("-")
-  tanggalPelaksanaan    String   @default("-")
-  // Mata Pelajaran Wajib
-  bindoNilai            Float    @default(0)
-  bindoKategori         String   @default("-")
-  matNilai              Float    @default(0)
-  matKategori           String   @default("-")
-  bingNilai             Float    @default(0)
-  bingKategori          String   @default("-")
-  // Mata Pelajaran Pilihan (nama ditentukan per siswa)
-  pilihan1Nama          String   @default("-")
-  pilihan1Nilai         Float    @default(0)
-  pilihan1Kategori      String   @default("-")
-  pilihan2Nama          String   @default("-")
-  pilihan2Nilai         Float    @default(0)
-  pilihan2Kategori      String   @default("-")
-  // Metadata
-  tkaId                 String   @default("-")  // ID from PDF (e.g. TKA25-U2UVHL96R)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  siswaid            String   @unique @map("siswaid")
+  siswa              Siswa    @relation(fields: [siswaid], references: [id], onDelete: Cascade)
+  nomorpeserta       String   @default("-") @map("nomorpeserta")
+  tanggalpelaksanaan String   @default("-") @map("tanggalpelaksanaan")
+  bindonilai         Float    @default(0) @map("bindonilai")
+  bindokategori      String   @default("-") @map("bindokategori")
+  matnilai           Float    @default(0) @map("matnilai")
+  matkategori        String   @default("-") @map("matkategori")
+  bingnilai          Float    @default(0) @map("bingnilai")
+  bingkategori       String   @default("-") @map("bingkategori")
+  pilihan1nama       String   @default("-") @map("pilihan1nama")
+  pilihan1nilai      Float    @default(0) @map("pilihan1nilai")
+  pilihan1kategori   String   @default("-") @map("pilihan1kategori")
+  pilihan2nama       String   @default("-") @map("pilihan2nama")
+  pilihan2nilai      Float    @default(0) @map("pilihan2nilai")
+  pilihan2kategori   String   @default("-") @map("pilihan2kategori")
+  tkaid              String   @default("-") @map("tkaid")
+  createdat          DateTime @default(now()) @map("createdat")
+  updatedat          DateTime @updatedAt @map("updatedat")
+
+  @@map("tka")
 }

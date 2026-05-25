@@ -11,7 +11,7 @@ export async function GET() {
     ])
 
     const siswaPerKelas = await db.siswa.groupBy({
-      by: ['rombelId'],
+      by: ['rombelid'],
       _count: { id: true },
     })
 
@@ -19,7 +19,7 @@ export async function GET() {
     const kelasMap = new Map(rombels.map(r => [r.id, r.kelas]))
     const kelasAgg: Record<number, number> = {}
     for (const item of siswaPerKelas) {
-      const kelas = kelasMap.get(item.rombelId) ?? 0
+      const kelas = kelasMap.get(item.rombelid) ?? 0
       kelasAgg[kelas] = (kelasAgg[kelas] ?? 0) + item._count.id
     }
     const siswaPerKelasResult = Object.entries(kelasAgg)
@@ -28,7 +28,7 @@ export async function GET() {
 
     const jurusanAgg: Record<string, number> = {}
     for (const item of siswaPerKelas) {
-      const rombel = rombels.find(r => r.id === item.rombelId)
+      const rombel = rombels.find(r => r.id === item.rombelid)
       if (rombel) {
         jurusanAgg[rombel.jurusan] = (jurusanAgg[rombel.jurusan] ?? 0) + item._count.id
       }

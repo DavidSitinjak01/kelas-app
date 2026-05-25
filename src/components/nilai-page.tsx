@@ -20,36 +20,36 @@ import {
 import { useToast } from '@/hooks/use-toast'
 
 interface Rombel { id: string; nama: string; kelas: number; jurusan: string }
-interface Siswa { id: string; nis: string; nisn: string; nama: string; rombelId: string; rombel: Rombel }
+interface Siswa { id: string; nis: string; nisn: string; nama: string; rombelid: string; rombel: Rombel }
 interface Nilai {
-  id: string; siswaId: string; mataPelajaran: string
+  id: string; siswaid: string; matapelajaran: string
   smt1: number; smt2: number; smt3: number; smt4: number; smt5: number; smt6: number
   rerata: number; siswa: Siswa
 }
 
 interface PeringkatItem {
-  siswaId: string; nama: string; nis: string; nisn: string
-  rombelId: string; rombelNama: string; kelas: number
+  siswaid: string; nama: string; nis: string; nisn: string
+  rombelid: string; rombelNama: string; kelas: number
   rataRata: number; subjectCount: number; peringkat: number
-  subjects: { mataPelajaran: string; rerata: number }[]
+  subjects: { matapelajaran: string; rerata: number }[]
 }
 
 interface RombelSummary {
-  rombelId: string; rombelNama: string; count: number; avgRataRata: number
+  rombelid: string; rombelNama: string; count: number; avgRataRata: number
 }
 
 interface TKARecord {
   id: string
-  siswaId: string
-  nomorPeserta: string
-  tanggalPelaksanaan: string
-  bindoNilai: number; bindoKategori: string
-  matNilai: number; matKategori: string
-  bingNilai: number; bingKategori: string
-  pilihan1Nama: string; pilihan1Nilai: number; pilihan1Kategori: string
-  pilihan2Nama: string; pilihan2Nilai: number; pilihan2Kategori: string
-  tkaId: string
-  siswa: { id: string; nis: string; nisn: string; nama: string; rombelId: string; rombel: Rombel }
+  siswaid: string
+  nomorpeserta: string
+  tanggalpelaksanaan: string
+  bindonilai: number; bindokategori: string
+  matnilai: number; matkategori: string
+  bingnilai: number; bingkategori: string
+  pilihan1nama: string; pilihan1nilai: number; pilihan1kategori: string
+  pilihan2nama: string; pilihan2nilai: number; pilihan2kategori: string
+  tkaid: string
+  siswa: { id: string; nis: string; nisn: string; nama: string; rombelid: string; rombel: Rombel }
 }
 
 const PAGE_SIZE = 30
@@ -63,7 +63,7 @@ export function NilaiPage() {
   const [open, setOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState({
-    siswaId: '', mataPelajaran: '',
+    siswaid: '', matapelajaran: '',
     smt1: '', smt2: '', smt3: '', smt4: '', smt5: '', smt6: '', rerata: '',
   })
   const [filterRombel, setFilterRombel] = useState('all')
@@ -98,7 +98,7 @@ export function NilaiPage() {
   const [tingkatSummary, setTingkatSummary] = useState<{ kelas: number; rombelCount: number; siswaCount: number; nilaiCount: number; rombels: { id: string; nama: string; siswaCount: number; nilaiCount: number }[] }[]>([])
   const [rombelNilaiInfo, setRombelNilaiInfo] = useState<Map<string, number>>(new Map())
 
-  // Eligible status map (siswaId -> status)
+  // Eligible status map (siswaid -> status)
   const [eligibleMap, setEligibleMap] = useState<Map<string, string>>(new Map())
 
   // TKA state
@@ -111,7 +111,7 @@ export function NilaiPage() {
   } | null>(null)
   const [tkaSelectedFiles, setTkaSelectedFiles] = useState<File[]>([])
   const [tkaFilterRombel, setTkaFilterRombel] = useState('all')
-  const [tkaCoverage, setTkaCoverage] = useState<{ rombelId: string; rombelNama: string; totalSiswa: number; tkaCount: number; missingCount: number }[]>([])
+  const [tkaCoverage, setTkaCoverage] = useState<{ rombelid: string; rombelNama: string; totalSiswa: number; tkaCount: number; missingCount: number }[]>([])
   // TKA import mode: 'pdf' or 'excel'
   const [tkaImportMode, setTkaImportMode] = useState<'pdf' | 'excel'>('pdf')
   const [tkaBulkFile, setTkaBulkFile] = useState<File | null>(null)
@@ -124,11 +124,11 @@ export function NilaiPage() {
   const { toast } = useToast()
 
   // Fetch mata pelajaran list separately
-  const fetchMataPelajaran = useCallback(async (rombelId?: string) => {
+  const fetchMataPelajaran = useCallback(async (rombelid?: string) => {
     try {
       const params = new URLSearchParams()
-      params.set('distinct', 'mataPelajaran')
-      if (rombelId) params.set('rombelId', rombelId)
+      params.set('distinct', 'matapelajaran')
+      if (rombelid) params.set('rombelid', rombelid)
       const res = await fetch(`/api/nilai?${params}`)
       const json = await res.json()
       if (Array.isArray(json)) {
@@ -195,7 +195,7 @@ export function NilaiPage() {
       const json = await res.json()
       const map = new Map<string, string>()
       for (const e of json) {
-        map.set(e.siswaId, e.status)
+        map.set(e.siswaid, e.status)
       }
       setEligibleMap(map)
     } catch {
@@ -210,7 +210,7 @@ export function NilaiPage() {
     setTkaLoading(true)
     try {
       const params = new URLSearchParams()
-      if (tkaFilterRombel !== 'all') params.set('rombelId', tkaFilterRombel)
+      if (tkaFilterRombel !== 'all') params.set('rombelid', tkaFilterRombel)
       params.set('coverage', 'true')
       const res = await fetch(`/api/tka?${params}`)
       const json = await res.json()
@@ -238,8 +238,8 @@ export function NilaiPage() {
         setDetailLoading(true)
         try {
           const params = new URLSearchParams()
-          if (filterRombel !== 'all') params.set('rombelId', filterRombel)
-          if (filterMapel !== 'all') params.set('mataPelajaran', filterMapel)
+          if (filterRombel !== 'all') params.set('rombelid', filterRombel)
+          if (filterMapel !== 'all') params.set('matapelajaran', filterMapel)
           params.set('page', String(page))
           params.set('limit', String(PAGE_SIZE))
 
@@ -253,7 +253,7 @@ export function NilaiPage() {
 
           // Fetch siswa for the add form
           if (filterRombel !== 'all') {
-            const siswaRes = await fetch(`/api/siswa?rombelId=${filterRombel}&limit=100`)
+            const siswaRes = await fetch(`/api/siswa?rombelid=${filterRombel}&limit=100`)
             const siswaJson = await siswaRes.json()
             setSiswaList(siswaJson.data || siswaJson)
           } else {
@@ -273,10 +273,10 @@ export function NilaiPage() {
   }, [activeTab, filterRombel, filterMapel, page, toast, fetchMataPelajaran])
 
   // Handle eligible status change from peringkat tingkat
-  const handleEligibleChange = async (siswaId: string, status: string) => {
+  const handleEligibleChange = async (siswaid: string, status: string) => {
     try {
       // Find the siswa to get keterangan
-      const siswa = peringkatTingkat.find(s => s.siswaId === siswaId)
+      const siswa = peringkatTingkat.find(s => s.siswaid === siswaid)
       let keterangan = ''
       if (status === 'eligible' && siswa) {
         keterangan = `Top 20% - Peringkat ${siswa.peringkat} dari ${peringkatTingkat.length} (Rata-rata: ${siswa.rataRata.toFixed(1)})`
@@ -291,14 +291,14 @@ export function NilaiPage() {
         const res = await fetch('/api/eligible', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ siswaId }),
+          body: JSON.stringify({ siswaid }),
         })
         if (!res.ok) throw new Error()
       } else {
         const res = await fetch('/api/eligible', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ siswaId, status, keterangan }),
+          body: JSON.stringify({ siswaid, status, keterangan }),
         })
         if (!res.ok) throw new Error()
       }
@@ -307,9 +307,9 @@ export function NilaiPage() {
       setEligibleMap(prev => {
         const next = new Map(prev)
         if (status === '-') {
-          next.delete(siswaId)
+          next.delete(siswaid)
         } else {
-          next.set(siswaId, status)
+          next.set(siswaid, status)
         }
         return next
       })
@@ -325,7 +325,7 @@ export function NilaiPage() {
     if (!peringkatKelasRombel) return
     setLoadingPeringkat(true)
     try {
-      const res = await fetch(`/api/peringkat?type=kelas&rombelId=${peringkatKelasRombel}`)
+      const res = await fetch(`/api/peringkat?type=kelas&rombelid=${peringkatKelasRombel}`)
       const json = await res.json()
       setPeringkatKelas(json.data || [])
       // Update totalNilai from rombel data
@@ -372,8 +372,8 @@ export function NilaiPage() {
     try {
       const body = {
         ...(editId ? { id: editId } : {}),
-        siswaId: form.siswaId,
-        mataPelajaran: form.mataPelajaran,
+        siswaid: form.siswaid,
+        matapelajaran: form.matapelajaran,
         smt1: form.smt1 || '0',
         smt2: form.smt2 || '0',
         smt3: form.smt3 || '0',
@@ -416,8 +416,8 @@ export function NilaiPage() {
   const handleEdit = (item: Nilai) => {
     setEditId(item.id)
     setForm({
-      siswaId: item.siswaId,
-      mataPelajaran: item.mataPelajaran,
+      siswaid: item.siswaid,
+      matapelajaran: item.matapelajaran,
       smt1: String(item.smt1 || ''),
       smt2: String(item.smt2 || ''),
       smt3: String(item.smt3 || ''),
@@ -432,7 +432,7 @@ export function NilaiPage() {
   const handleAdd = () => {
     setEditId(null)
     setForm({
-      siswaId: '', mataPelajaran: '',
+      siswaid: '', matapelajaran: '',
       smt1: '', smt2: '', smt3: '', smt4: '', smt5: '', smt6: '', rerata: '',
     })
     setOpen(true)
@@ -751,7 +751,7 @@ export function NilaiPage() {
                   {/* Top 3 */}
                   <div className="grid grid-cols-3 gap-3">
                     {peringkatKelas.slice(0, 3).map((s, idx) => (
-                      <Card key={s.siswaId} className={idx === 0 ? 'border-yellow-300 bg-yellow-50/50 dark:bg-yellow-950/10' : idx === 1 ? 'border-gray-300 bg-gray-50/50 dark:bg-gray-950/10' : 'border-amber-300 bg-amber-50/50 dark:bg-amber-950/10'}>
+                      <Card key={s.siswaid} className={idx === 0 ? 'border-yellow-300 bg-yellow-50/50 dark:bg-yellow-950/10' : idx === 1 ? 'border-gray-300 bg-gray-50/50 dark:bg-gray-950/10' : 'border-amber-300 bg-amber-50/50 dark:bg-amber-950/10'}>
                         <CardContent className="p-4 text-center">
                           <div className="flex justify-center mb-2">
                             {idx === 0 ? <Trophy className="h-8 w-8 text-yellow-500" /> : <Medal className={`h-8 w-8 ${idx === 1 ? 'text-gray-400' : 'text-amber-600'}`} />}
@@ -782,7 +782,7 @@ export function NilaiPage() {
                       </TableHeader>
                       <TableBody>
                         {paginatedPeringkatKelas.map(s => (
-                          <TableRow key={s.siswaId} className={s.peringkat <= 3 ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : ''}>
+                          <TableRow key={s.siswaid} className={s.peringkat <= 3 ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : ''}>
                             <TableCell className="text-center">{peringkatBadge(s.peringkat)}</TableCell>
                             <TableCell className="font-mono text-sm">{s.nis}</TableCell>
                             <TableCell className="font-medium">{s.nama}</TableCell>
@@ -852,9 +852,9 @@ export function NilaiPage() {
               {peringkatTingkatKelas === '12' && peringkatTingkat.length > 0 && (() => {
                 const total = peringkatTingkat.length
                 const top20 = Math.max(Math.floor(total * 0.2), 1)
-                const eligibleSiswaCount = peringkatTingkat.filter(s => eligibleMap.get(s.siswaId) === 'eligible').length
-                const bersyaratCount = peringkatTingkat.filter(s => eligibleMap.get(s.siswaId) === 'bersyarat').length
-                const tidakCount = peringkatTingkat.filter(s => eligibleMap.get(s.siswaId) === 'tidak').length
+                const eligibleSiswaCount = peringkatTingkat.filter(s => eligibleMap.get(s.siswaid) === 'eligible').length
+                const bersyaratCount = peringkatTingkat.filter(s => eligibleMap.get(s.siswaid) === 'bersyarat').length
+                const tidakCount = peringkatTingkat.filter(s => eligibleMap.get(s.siswaid) === 'tidak').length
                 return (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <Card className="border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/10">
@@ -901,7 +901,7 @@ export function NilaiPage() {
               {rombelSummary.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {rombelSummary.sort((a, b) => b.avgRataRata - a.avgRataRata).map(r => (
-                    <Badge key={r.rombelId} variant="outline" className="py-1.5 px-3">
+                    <Badge key={r.rombelid} variant="outline" className="py-1.5 px-3">
                       <span className="font-medium">{r.rombelNama}</span>
                       <span className="mx-1.5 text-muted-foreground">•</span>
                       <span className="text-emerald-600 font-semibold">{r.avgRataRata.toFixed(2)}</span>
@@ -930,7 +930,7 @@ export function NilaiPage() {
                   {/* Top 3 */}
                   <div className="grid grid-cols-3 gap-3">
                     {peringkatTingkat.slice(0, 3).map((s, idx) => (
-                      <Card key={s.siswaId} className={idx === 0 ? 'border-yellow-300 bg-yellow-50/50 dark:bg-yellow-950/10' : idx === 1 ? 'border-gray-300 bg-gray-50/50 dark:bg-gray-950/10' : 'border-amber-300 bg-amber-50/50 dark:bg-amber-950/10'}>
+                      <Card key={s.siswaid} className={idx === 0 ? 'border-yellow-300 bg-yellow-50/50 dark:bg-yellow-950/10' : idx === 1 ? 'border-gray-300 bg-gray-50/50 dark:bg-gray-950/10' : 'border-amber-300 bg-amber-50/50 dark:bg-amber-950/10'}>
                         <CardContent className="p-4 text-center">
                           <div className="flex justify-center mb-2">
                             {idx === 0 ? <Trophy className="h-8 w-8 text-yellow-500" /> : <Medal className={`h-8 w-8 ${idx === 1 ? 'text-gray-400' : 'text-amber-600'}`} />}
@@ -965,10 +965,10 @@ export function NilaiPage() {
                       </TableHeader>
                       <TableBody>
                         {paginatedPeringkatTingkat.map(s => {
-                          const currentStatus = eligibleMap.get(s.siswaId) || '-'
+                          const currentStatus = eligibleMap.get(s.siswaid) || '-'
                           const top20 = Math.max(Math.floor(peringkatTingkat.length * 0.2), 1)
                           return (
-                            <TableRow key={s.siswaId} className={currentStatus === 'eligible' ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : s.peringkat <= 3 ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : ''}>
+                            <TableRow key={s.siswaid} className={currentStatus === 'eligible' ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : s.peringkat <= 3 ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : ''}>
                               <TableCell className="text-center">{peringkatBadge(s.peringkat)}</TableCell>
                               <TableCell className="font-mono text-sm">{s.nis}</TableCell>
                               <TableCell className="font-medium">{s.nama}</TableCell>
@@ -981,7 +981,7 @@ export function NilaiPage() {
                               </TableCell>
                               {peringkatTingkatKelas === '12' && (
                                 <TableCell className="text-center">
-                                  <Select value={currentStatus} onValueChange={(v) => handleEligibleChange(s.siswaId, v)}>
+                                  <Select value={currentStatus} onValueChange={(v) => handleEligibleChange(s.siswaid, v)}>
                                     <SelectTrigger className={`h-8 w-32 text-xs ${currentStatus === 'eligible' ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' : currentStatus === 'bersyarat' ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/30' : currentStatus === 'tidak' ? 'border-red-400 bg-red-50 dark:bg-red-950/30' : ''}`}>
                                       <SelectValue />
                                     </SelectTrigger>
@@ -1048,12 +1048,12 @@ export function NilaiPage() {
                       const isComplete = r.tkaCount > 0 && r.missingCount === 0
                       const isPartial = r.tkaCount > 0 && r.missingCount > 0
                       const isEmpty = r.tkaCount === 0
-                      const isSelected = tkaFilterRombel === r.rombelId
+                      const isSelected = tkaFilterRombel === r.rombelid
                       return (
                         <Card
-                          key={r.rombelId}
+                          key={r.rombelid}
                           className={`cursor-pointer transition-all ${isComplete ? 'border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/10' : isPartial ? 'border-amber-200 bg-amber-50/50 dark:bg-amber-950/10' : 'border-red-200 bg-red-50/50 dark:bg-red-950/10'} ${isSelected ? 'ring-2 ring-primary' : ''}`}
-                          onClick={() => setTkaFilterRombel(r.rombelId)}
+                          onClick={() => setTkaFilterRombel(r.rombelid)}
                         >
                           <CardContent className="p-3 text-center">
                             <p className="text-xs font-medium">{r.rombelNama}</p>
@@ -1073,9 +1073,9 @@ export function NilaiPage() {
 
               {/* TKA Summary Stats */}
               {tkaData.length > 0 && (() => {
-                const avgBindo = tkaData.reduce((s, t) => s + t.bindoNilai, 0) / tkaData.length
-                const avgMat = tkaData.reduce((s, t) => s + t.matNilai, 0) / tkaData.length
-                const avgBing = tkaData.reduce((s, t) => s + t.bingNilai, 0) / tkaData.length
+                const avgBindo = tkaData.reduce((s, t) => s + t.bindonilai, 0) / tkaData.length
+                const avgMat = tkaData.reduce((s, t) => s + t.matnilai, 0) / tkaData.length
+                const avgBing = tkaData.reduce((s, t) => s + t.bingnilai, 0) / tkaData.length
                 return (
                   <div className="grid grid-cols-3 gap-3">
                     <Card className="border-orange-200 bg-orange-50/50 dark:bg-orange-950/10">
@@ -1143,38 +1143,38 @@ export function NilaiPage() {
                           </TableCell>
                           <TableCell className="text-center">
                             <div>
-                              <span className={`font-semibold ${nilaiColor(t.bindoNilai)}`}>{t.bindoNilai.toFixed(2)}</span>
-                              <p className="text-[10px] text-muted-foreground">{t.bindoKategori}</p>
+                              <span className={`font-semibold ${nilaiColor(t.bindonilai)}`}>{t.bindonilai.toFixed(2)}</span>
+                              <p className="text-[10px] text-muted-foreground">{t.bindokategori}</p>
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
                             <div>
-                              <span className={`font-semibold ${nilaiColor(t.matNilai)}`}>{t.matNilai.toFixed(2)}</span>
-                              <p className="text-[10px] text-muted-foreground">{t.matKategori}</p>
+                              <span className={`font-semibold ${nilaiColor(t.matnilai)}`}>{t.matnilai.toFixed(2)}</span>
+                              <p className="text-[10px] text-muted-foreground">{t.matkategori}</p>
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
                             <div>
-                              <span className={`font-semibold ${nilaiColor(t.bingNilai)}`}>{t.bingNilai.toFixed(2)}</span>
-                              <p className="text-[10px] text-muted-foreground">{t.bingKategori}</p>
+                              <span className={`font-semibold ${nilaiColor(t.bingnilai)}`}>{t.bingnilai.toFixed(2)}</span>
+                              <p className="text-[10px] text-muted-foreground">{t.bingkategori}</p>
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            <span className="text-xs font-medium">{t.pilihan1Nama}</span>
+                            <span className="text-xs font-medium">{t.pilihan1nama}</span>
                           </TableCell>
                           <TableCell className="text-center">
                             <div>
-                              <span className={`font-semibold ${nilaiColor(t.pilihan1Nilai)}`}>{t.pilihan1Nilai.toFixed(2)}</span>
-                              <p className="text-[10px] text-muted-foreground">{t.pilihan1Kategori}</p>
+                              <span className={`font-semibold ${nilaiColor(t.pilihan1nilai)}`}>{t.pilihan1nilai.toFixed(2)}</span>
+                              <p className="text-[10px] text-muted-foreground">{t.pilihan1kategori}</p>
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            <span className="text-xs font-medium">{t.pilihan2Nama}</span>
+                            <span className="text-xs font-medium">{t.pilihan2nama}</span>
                           </TableCell>
                           <TableCell className="text-center">
                             <div>
-                              <span className={`font-semibold ${nilaiColor(t.pilihan2Nilai)}`}>{t.pilihan2Nilai.toFixed(2)}</span>
-                              <p className="text-[10px] text-muted-foreground">{t.pilihan2Kategori}</p>
+                              <span className={`font-semibold ${nilaiColor(t.pilihan2nilai)}`}>{t.pilihan2nilai.toFixed(2)}</span>
+                              <p className="text-[10px] text-muted-foreground">{t.pilihan2kategori}</p>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -1245,7 +1245,7 @@ export function NilaiPage() {
                     <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto">
                       <div className="space-y-2">
                         <Label>Siswa</Label>
-                        <Select value={form.siswaId} onValueChange={v => setForm(f => ({ ...f, siswaId: v }))}>
+                        <Select value={form.siswaid} onValueChange={v => setForm(f => ({ ...f, siswaid: v }))}>
                           <SelectTrigger><SelectValue placeholder="Pilih Siswa" /></SelectTrigger>
                           <SelectContent>
                             {siswaList.map(s => (
@@ -1256,7 +1256,7 @@ export function NilaiPage() {
                       </div>
                       <div className="space-y-2">
                         <Label>Mata Pelajaran</Label>
-                        <Input placeholder="Nama mata pelajaran" value={form.mataPelajaran} onChange={e => setForm(f => ({ ...f, mataPelajaran: e.target.value }))} />
+                        <Input placeholder="Nama mata pelajaran" value={form.matapelajaran} onChange={e => setForm(f => ({ ...f, matapelajaran: e.target.value }))} />
                       </div>
                       <div className="grid grid-cols-3 gap-3">
                         {['smt1', 'smt2', 'smt3', 'smt4', 'smt5', 'smt6'].map((smt) => (
@@ -1270,7 +1270,7 @@ export function NilaiPage() {
                         <Label>Rerata</Label>
                         <Input type="number" min="0" max="100" step="0.01" placeholder="Otomatis jika kosong" value={form.rerata} onChange={e => setForm(f => ({ ...f, rerata: e.target.value }))} />
                       </div>
-                      <Button onClick={handleSubmit} className="w-full" disabled={!form.siswaId || !form.mataPelajaran}>
+                      <Button onClick={handleSubmit} className="w-full" disabled={!form.siswaid || !form.matapelajaran}>
                         {editId ? 'Perbarui' : 'Simpan'}
                       </Button>
                     </div>
@@ -1322,7 +1322,7 @@ export function NilaiPage() {
                           <TableCell>{(page - 1) * PAGE_SIZE + idx + 1}</TableCell>
                           <TableCell className="font-medium text-sm">{item.siswa?.nama ?? '-'}</TableCell>
                           <TableCell><Badge variant="outline" className="text-xs">{item.siswa?.rombel?.nama ?? '-'}</Badge></TableCell>
-                          <TableCell className="text-sm">{item.mataPelajaran}</TableCell>
+                          <TableCell className="text-sm">{item.matapelajaran}</TableCell>
                           {[item.smt1, item.smt2, item.smt3, item.smt4, item.smt5, item.smt6].map((v, i) => (
                             <TableCell key={i} className={`text-center text-sm ${v > 0 ? nilaiColor(v) : 'text-muted-foreground'}`}>
                               {v > 0 ? v : '-'}
@@ -1346,7 +1346,7 @@ export function NilaiPage() {
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Hapus Nilai?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      Nilai {item.siswa?.nama} - {item.mataPelajaran} akan dihapus.
+                                      Nilai {item.siswa?.nama} - {item.matapelajaran} akan dihapus.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>

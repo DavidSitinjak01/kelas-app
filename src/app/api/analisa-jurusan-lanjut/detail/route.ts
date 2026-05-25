@@ -52,15 +52,15 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const { siswaId } = body
+    const { siswaid } = body
 
-    if (!siswaId) {
-      return NextResponse.json({ error: 'siswaId diperlukan' }, { status: 400 })
+    if (!siswaid) {
+      return NextResponse.json({ error: 'siswaid diperlukan' }, { status: 400 })
     }
 
     // Fetch student data
     const siswa = await db.siswa.findUnique({
-      where: { id: siswaId },
+      where: { id: siswaid },
       include: {
         rombel: true,
         nilai: true,
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
             })()
           : '?'
 
-        return `${n.mataPelajaran}: ${n.rerata.toFixed(1)} (${trend})`
+        return `${n.matapelajaran}: ${n.rerata.toFixed(1)} (${trend})`
       })
       .join('\n')
 
@@ -109,25 +109,25 @@ export async function POST(request: Request) {
     const topSubjects = nilaiWithScore
       .sort((a, b) => b.rerata - a.rerata)
       .slice(0, 5)
-      .map(n => n.mataPelajaran)
+      .map(n => n.matapelajaran)
       .join(', ')
 
     // Bottom 3 subjects
     const bottomSubjects = nilaiWithScore
       .sort((a, b) => a.rerata - b.rerata)
       .slice(0, 3)
-      .map(n => `${n.mataPelajaran}(${n.rerata.toFixed(1)})`)
+      .map(n => `${n.matapelajaran}(${n.rerata.toFixed(1)})`)
       .join(', ')
 
     let tkaSummary = ''
     if (siswa.tka) {
       const t = siswa.tka
-      const avgWajib = ((t.bindoNilai || 0) + (t.matNilai || 0) + (t.bingNilai || 0)) / 3
+      const avgWajib = ((t.bindonilai || 0) + (t.matnilai || 0) + (t.bingnilai || 0)) / 3
       tkaSummary = `
-TKA: Bin=${t.bindoNilai}(${t.bindoKategori}) Mat=${t.matNilai}(${t.matKategori}) Bing=${t.bingNilai}(${t.bingKategori}) Pil1=${t.pilihan1Nama}=${t.pilihan1Nilai}(${t.pilihan1Kategori}) Pil2=${t.pilihan2Nama}=${t.pilihan2Nilai}(${t.pilihan2Kategori}) AvgWajib=${avgWajib.toFixed(1)}`
+TKA: Bin=${t.bindonilai}(${t.bindokategori}) Mat=${t.matnilai}(${t.matkategori}) Bing=${t.bingnilai}(${t.bingkategori}) Pil1=${t.pilihan1nama}=${t.pilihan1nilai}(${t.pilihan1kategori}) Pil2=${t.pilihan2nama}=${t.pilihan2nilai}(${t.pilihan2kategori}) AvgWajib=${avgWajib.toFixed(1)}`
     }
 
-    console.log(`[AI-Analysis] Starting analysis for ${siswa.nama} (${siswaId}), elapsed: ${Date.now() - startTime}ms`)
+    console.log(`[AI-Analysis] Starting analysis for ${siswa.nama} (${siswaid}), elapsed: ${Date.now() - startTime}ms`)
 
     // Use retry logic for LLM call with 120s timeout per attempt
     const result = await retryWithBackoff(async () => {
@@ -218,7 +218,7 @@ Top 3 jurusan terbaik & saran motivasi`
     console.log(`[AI-Analysis] Completed for ${siswa.nama} in ${totalTime}s`)
 
     return NextResponse.json({
-      siswaId,
+      siswaid,
       nama: siswa.nama,
       nis: siswa.nis,
       rombelNama: siswa.rombel.nama,

@@ -86,8 +86,8 @@ export async function POST(request: Request) {
       nipd: string
       nisn: string
       jk: string
-      tempatLahir: string
-      tanggalLahir: string
+      tempatlahir: string
+      tanggallahir: string
       rombelNama: string
     }[] = []
 
@@ -99,8 +99,8 @@ export async function POST(request: Request) {
       const nipd = String(row[COL_NIPD] || '').trim()
       const nisn = String(row[COL_NISN] || '').trim()
       const jk = String(row[COL_JK] || '').trim().toUpperCase()
-      const tempatLahir = String(row[COL_TEMPAT_LAHIR] || '').trim()
-      const tanggalLahir = row[COL_TANGGAL_LAHIR] ? formatDate(row[COL_TANGGAL_LAHIR]) : ''
+      const tempatlahir = String(row[COL_TEMPAT_LAHIR] || '').trim()
+      const tanggallahir = row[COL_TANGGAL_LAHIR] ? formatDate(row[COL_TANGGAL_LAHIR]) : ''
       const rombelNama = String(row[COL_ROMBEL] || '').trim()
 
       if (!nama || !rombelNama) continue
@@ -117,8 +117,8 @@ export async function POST(request: Request) {
         nipd,
         nisn,
         jk: jk === 'L' ? 'L' : 'P',
-        tempatLahir,
-        tanggalLahir,
+        tempatlahir,
+        tanggallahir,
         rombelNama,
       })
     }
@@ -136,7 +136,7 @@ export async function POST(request: Request) {
     }
 
     // Create all rombels using batch for performance
-    const rombelMap = new Map<string, string>() // rombelNama -> rombelId
+    const rombelMap = new Map<string, string>() // rombelNama -> rombelid
     let rombelCreated = 0
 
     // Get all existing rombels in one query
@@ -153,8 +153,8 @@ export async function POST(request: Request) {
           nama: info.nama,
           kelas: info.kelas,
           jurusan: info.jurusan,
-          tahunAjaran: '2024/2025',
-          waliKelas: '-',
+          tahunajaran: '2024/2025',
+          walikelas: '-',
         },
       })
       rombelMap.set(nama, rombel.id)
@@ -177,8 +177,8 @@ export async function POST(request: Request) {
       const batchData = siswaData.slice(batch, batch + BATCH_SIZE)
 
       for (const siswa of batchData) {
-        const rombelId = rombelMap.get(siswa.rombelNama)
-        if (!rombelId) {
+        const rombelid = rombelMap.get(siswa.rombelNama)
+        if (!rombelid) {
           errors.push(`Rombel tidak ditemukan untuk ${siswa.nama}: ${siswa.rombelNama}`)
           siswaSkipped++
           continue
@@ -203,10 +203,10 @@ export async function POST(request: Request) {
               data: {
                 nisn: siswa.nisn || undefined,
                 nama: siswa.nama,
-                jenisKelamin: siswa.jk,
-                tempatLahir: siswa.tempatLahir || undefined,
-                tanggalLahir: siswa.tanggalLahir || undefined,
-                rombelId,
+                jeniskelamin: siswa.jk,
+                tempatlahir: siswa.tempatlahir || undefined,
+                tanggallahir: siswa.tanggallahir || undefined,
+                rombelid,
               },
             })
             siswaUpdated++
@@ -224,10 +224,10 @@ export async function POST(request: Request) {
               nis,
               nisn: siswa.nisn || '-',
               nama: siswa.nama,
-              jenisKelamin: siswa.jk,
-              tempatLahir: siswa.tempatLahir || '-',
-              tanggalLahir: siswa.tanggalLahir || '-',
-              rombelId,
+              jeniskelamin: siswa.jk,
+              tempatlahir: siswa.tempatlahir || '-',
+              tanggallahir: siswa.tanggallahir || '-',
+              rombelid,
             },
           })
           nisMap.set(nis, 'created')

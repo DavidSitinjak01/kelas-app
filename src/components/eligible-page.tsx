@@ -9,8 +9,8 @@ import { Trophy, CheckCircle, AlertTriangle, XCircle, Loader2 } from 'lucide-rea
 import { useToast } from '@/hooks/use-toast'
 
 interface Eligible {
-  id: string; siswaId: string; status: string; keterangan: string | null
-  siswa: { id: string; nis: string; nama: string; rombelId: string; rombel: { id: string; nama: string; kelas: number } }
+  id: string; siswaid: string; status: string; keterangan: string | null
+  siswa: { id: string; nis: string; nama: string; rombelid: string; rombel: { id: string; nama: string; kelas: number } }
 }
 
 export function EligiblePage() {
@@ -32,12 +32,12 @@ export function EligiblePage() {
 
   useEffect(() => { fetchData() }, [])
 
-  const handleRemove = async (siswaId: string) => {
+  const handleRemove = async (siswaid: string) => {
     try {
       await fetch('/api/eligible', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ siswaId }),
+        body: JSON.stringify({ siswaid }),
       })
       toast({ title: 'Status eligible dihapus' })
       fetchData()
@@ -155,7 +155,7 @@ export function EligiblePage() {
                     <TableCell>{statusBadge(item.status)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{item.keterangan ?? '-'}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => handleRemove(item.siswaId)}>
+                      <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => handleRemove(item.siswaid)}>
                         Hapus
                       </Button>
                     </TableCell>

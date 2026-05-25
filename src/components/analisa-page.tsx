@@ -24,7 +24,7 @@ export function AnalisaPage() {
   const fetchData = async () => {
     try {
       const [analisaRes, rombelRes] = await Promise.all([
-        fetch(`/api/analisa?rombelId=${filterRombel}`),
+        fetch(`/api/analisa?rombelid=${filterRombel}`),
         fetch('/api/rombel'),
       ])
       setData(await analisaRes.json())

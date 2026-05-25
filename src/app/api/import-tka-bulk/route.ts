@@ -184,15 +184,15 @@ export async function POST(request: Request) {
       const nisnVal = nisnIdx !== -1 ? parseStr(row[headers[nisnIdx]], '') : ''
       const nisVal = nisIdx !== -1 ? parseStr(row[headers[nisIdx]], '') : ''
       const namaVal = namaIdx !== -1 ? parseStr(row[headers[namaIdx]], '') : ''
-      const bindoNilai = bindoIdx !== -1 ? parseNum(row[headers[bindoIdx]]) : 0
-      const matNilai = matIdx !== -1 ? parseNum(row[headers[matIdx]]) : 0
-      const bingNilai = bingIdx !== -1 ? parseNum(row[headers[bingIdx]]) : 0
+      const bindonilai = bindoIdx !== -1 ? parseNum(row[headers[bindoIdx]]) : 0
+      const matnilai = matIdx !== -1 ? parseNum(row[headers[matIdx]]) : 0
+      const bingnilai = bingIdx !== -1 ? parseNum(row[headers[bingIdx]]) : 0
       const p1Nama = p1NamaIdx !== -1 ? parseStr(row[headers[p1NamaIdx]], '-') : '-'
       const p1Nilai = p1NilaiIdx !== -1 ? parseNum(row[headers[p1NilaiIdx]]) : 0
       const p2Nama = p2NamaIdx !== -1 ? parseStr(row[headers[p2NamaIdx]], '-') : '-'
       const p2Nilai = p2NilaiIdx !== -1 ? parseNum(row[headers[p2NilaiIdx]]) : 0
-      const nomorPeserta = noPesertaIdx !== -1 ? parseStr(row[headers[noPesertaIdx]]) : '-'
-      const tanggalPelaksanaan = tanggalIdx !== -1 ? parseStr(row[headers[tanggalIdx]]) : '-'
+      const nomorpeserta = noPesertaIdx !== -1 ? parseStr(row[headers[noPesertaIdx]]) : '-'
+      const tanggalpelaksanaan = tanggalIdx !== -1 ? parseStr(row[headers[tanggalIdx]]) : '-'
 
       // Skip empty rows
       if (!nisnVal && !nisVal && !namaVal) {
@@ -282,43 +282,43 @@ export async function POST(request: Request) {
 
       // Upsert TKA record
       const existingTka = await db.tKA.findUnique({
-        where: { siswaId: matchedSiswa.id },
+        where: { siswaid: matchedSiswa.id },
       })
 
       await db.tKA.upsert({
-        where: { siswaId: matchedSiswa.id },
+        where: { siswaid: matchedSiswa.id },
         create: {
-          siswaId: matchedSiswa.id,
-          nomorPeserta,
-          tanggalPelaksanaan,
-          bindoNilai,
-          bindoKategori: getKategori(bindoNilai),
-          matNilai,
-          matKategori: getKategori(matNilai),
-          bingNilai,
-          bingKategori: getKategori(bingNilai),
-          pilihan1Nama: p1Nama,
-          pilihan1Nilai: p1Nilai,
-          pilihan1Kategori: getKategori(p1Nilai),
-          pilihan2Nama: p2Nama,
-          pilihan2Nilai: p2Nilai,
-          pilihan2Kategori: getKategori(p2Nilai),
+          siswaid: matchedSiswa.id,
+          nomorpeserta,
+          tanggalpelaksanaan,
+          bindonilai,
+          bindokategori: getKategori(bindonilai),
+          matnilai,
+          matkategori: getKategori(matnilai),
+          bingnilai,
+          bingkategori: getKategori(bingnilai),
+          pilihan1nama: p1Nama,
+          pilihan1nilai: p1Nilai,
+          pilihan1kategori: getKategori(p1Nilai),
+          pilihan2nama: p2Nama,
+          pilihan2nilai: p2Nilai,
+          pilihan2kategori: getKategori(p2Nilai),
         },
         update: {
-          nomorPeserta,
-          tanggalPelaksanaan,
-          bindoNilai,
-          bindoKategori: getKategori(bindoNilai),
-          matNilai,
-          matKategori: getKategori(matNilai),
-          bingNilai,
-          bingKategori: getKategori(bingNilai),
-          pilihan1Nama: p1Nama,
-          pilihan1Nilai: p1Nilai,
-          pilihan1Kategori: getKategori(p1Nilai),
-          pilihan2Nama: p2Nama,
-          pilihan2Nilai: p2Nilai,
-          pilihan2Kategori: getKategori(p2Nilai),
+          nomorpeserta,
+          tanggalpelaksanaan,
+          bindonilai,
+          bindokategori: getKategori(bindonilai),
+          matnilai,
+          matkategori: getKategori(matnilai),
+          bingnilai,
+          bingkategori: getKategori(bingnilai),
+          pilihan1nama: p1Nama,
+          pilihan1nilai: p1Nilai,
+          pilihan1kategori: getKategori(p1Nilai),
+          pilihan2nama: p2Nama,
+          pilihan2nilai: p2Nilai,
+          pilihan2kategori: getKategori(p2Nilai),
         },
       })
 
@@ -351,15 +351,15 @@ export async function POST(request: Request) {
         nisn: nisnIdx !== -1 ? headers[nisnIdx] : '(tidak ditemukan)',
         nis: nisIdx !== -1 ? headers[nisIdx] : '(tidak ditemukan)',
         nama: namaIdx !== -1 ? headers[namaIdx] : '(tidak ditemukan)',
-        bindoNilai: bindoIdx !== -1 ? headers[bindoIdx] : '(tidak ditemukan)',
-        matNilai: matIdx !== -1 ? headers[matIdx] : '(tidak ditemukan)',
-        bingNilai: bingIdx !== -1 ? headers[bingIdx] : '(tidak ditemukan)',
-        pilihan1Nama: p1NamaIdx !== -1 ? headers[p1NamaIdx] : '(tidak ditemukan)',
-        pilihan1Nilai: p1NilaiIdx !== -1 ? headers[p1NilaiIdx] : '(tidak ditemukan)',
-        pilihan2Nama: p2NamaIdx !== -1 ? headers[p2NamaIdx] : '(tidak ditemukan)',
-        pilihan2Nilai: p2NilaiIdx !== -1 ? headers[p2NilaiIdx] : '(tidak ditemukan)',
-        nomorPeserta: noPesertaIdx !== -1 ? headers[noPesertaIdx] : '(tidak ditemukan)',
-        tanggalPelaksanaan: tanggalIdx !== -1 ? headers[tanggalIdx] : '(tidak ditemukan)',
+        bindonilai: bindoIdx !== -1 ? headers[bindoIdx] : '(tidak ditemukan)',
+        matnilai: matIdx !== -1 ? headers[matIdx] : '(tidak ditemukan)',
+        bingnilai: bingIdx !== -1 ? headers[bingIdx] : '(tidak ditemukan)',
+        pilihan1nama: p1NamaIdx !== -1 ? headers[p1NamaIdx] : '(tidak ditemukan)',
+        pilihan1nilai: p1NilaiIdx !== -1 ? headers[p1NilaiIdx] : '(tidak ditemukan)',
+        pilihan2nama: p2NamaIdx !== -1 ? headers[p2NamaIdx] : '(tidak ditemukan)',
+        pilihan2nilai: p2NilaiIdx !== -1 ? headers[p2NilaiIdx] : '(tidak ditemukan)',
+        nomorpeserta: noPesertaIdx !== -1 ? headers[noPesertaIdx] : '(tidak ditemukan)',
+        tanggalpelaksanaan: tanggalIdx !== -1 ? headers[tanggalIdx] : '(tidak ditemukan)',
       },
     })
   } catch (error) {
