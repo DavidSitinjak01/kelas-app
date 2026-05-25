@@ -69,41 +69,17 @@ export default function FormNilaiPage() {
 
   const { toast } = useToast()
 
-  // Check existing session on mount
+  // On page load/refresh: clear any existing session and show login
   useEffect(() => {
-    const checkSession = async () => {
+    const clearSession = async () => {
       try {
-        const res = await fetch('/api/public/student-me')
-        if (res.ok) {
-          const data = await res.json()
-          if (data.student) {
-            setSiswa(data.student)
-            // Load nilai
-            const nilaiRes = await fetch(`/api/public/nilai?siswaid=${data.student.id}`)
-            const nilaiData = await nilaiRes.json()
-            if (nilaiRes.ok && nilaiData.nilai) {
-              setNilaiList(
-                nilaiData.nilai.map((n: NilaiEntry) => ({
-                  ...n,
-                  smt1: n.smt1 || '',
-                  smt2: n.smt2 || '',
-                  smt3: n.smt3 || '',
-                  smt4: n.smt4 || '',
-                  smt5: n.smt5 || '',
-                  smt6: n.smt6 || '',
-                }))
-              )
-            }
-            setStep('form')
-          }
-        }
+        await fetch('/api/public/student-logout', { method: 'POST' })
       } catch {
-        // Not logged in, show login
-      } finally {
-        setIsCheckingSession(false)
+        // Ignore
       }
+      setIsCheckingSession(false)
     }
-    checkSession()
+    clearSession()
   }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
