@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Compass, FlaskConical, Globe, Loader2, ChevronLeft, ChevronRight,
   TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2, BarChart3,
-  Brain, Sparkles, Users, Printer,
+  Brain, Sparkles, Users, Printer, Download,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -65,6 +65,7 @@ export function RekomendasiJurusanPage() {
   const [availableRombels, setAvailableRombels] = useState<{ id: string; nama: string; siswaCount: number }[]>([])
   const [filterRombel, setFilterRombel] = useState<string>('all')
   const [loading, setLoading] = useState(true)
+  const [downloading, setDownloading] = useState(false)
   const [page, setPage] = useState(1)
   const [selectedStudent, setSelectedStudent] = useState<AnalysisStudent | null>(null)
   const { toast } = useToast()
@@ -98,6 +99,27 @@ export function RekomendasiJurusanPage() {
     setPage(1)
     setSelectedStudent(null)
   }, [filterRombel, fetchData])
+
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      const res = await fetch(`/api/analisa-jurusan/download?rombelid=${filterRombel}`)
+      if (!res.ok) throw new Error('Gagal download')
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'Rekomendasi_Jurusan_Kelas_X.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      toast({ title: 'Gagal', description: 'Gagal mengunduh file', variant: 'destructive' })
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   // Pagination
   const totalPages = Math.ceil(students.length / PAGE_SIZE)
@@ -276,6 +298,10 @@ export function RekomendasiJurusanPage() {
             </SelectContent>
           </Select>
         )}
+        <Button onClick={handleDownload} disabled={downloading} variant="outline" size="sm">
+          {downloading ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Download className="size-4 mr-1" />}
+          Download Excel
+        </Button>
       </div>
 
       {/* Summary Cards */}

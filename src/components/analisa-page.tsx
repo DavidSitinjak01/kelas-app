@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Download, Loader2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts'
 
 interface Rombel { id: string; nama: string; kelas: number; jurusan: string }
@@ -18,6 +20,7 @@ const COLORS = ['#059669', '#0d9488', '#0ea5e9', '#8b5cf6', '#f59e0b', '#ef4444'
 export function AnalisaPage() {
   const [data, setData] = useState<AnalisaData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [downloading, setDownloading] = useState(false)
   const [filterRombel, setFilterRombel] = useState('all')
   const [rombelList, setRombelList] = useState<Rombel[]>([])
 
@@ -40,6 +43,27 @@ export function AnalisaPage() {
     fetchData()
   }, [filterRombel])
 
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      const res = await fetch(`/api/analisa/download?rombelid=${filterRombel}`)
+      if (!res.ok) throw new Error('Gagal download')
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Analisa_Nilai_${filterRombel === 'all' ? 'Semua' : 'Rombel'}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      alert('Gagal mengunduh file')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
   }
@@ -57,6 +81,10 @@ export function AnalisaPage() {
               ))}
             </SelectContent>
           </Select>
+          <Button onClick={handleDownload} disabled={downloading} variant="outline" size="sm">
+            {downloading ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Download className="size-4 mr-1" />}
+            Download Excel
+          </Button>
         </div>
         <Card>
           <CardContent className="py-16 text-center text-muted-foreground">
@@ -79,6 +107,10 @@ export function AnalisaPage() {
             ))}
           </SelectContent>
         </Select>
+        <Button onClick={handleDownload} disabled={downloading} variant="outline" size="sm">
+          {downloading ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Download className="size-4 mr-1" />}
+          Download Excel
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

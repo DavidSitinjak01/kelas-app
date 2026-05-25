@@ -140,6 +140,7 @@ export function AnalisaJurusanLanjutPage() {
   const [subjectMapping, setSubjectMapping] = useState<SubjectMapping | null>(null)
   const [availableRombels, setAvailableRombels] = useState<{ id: string; nama: string; siswaCount: number }[]>([])
   const [loading, setLoading] = useState(true)
+  const [downloading, setDownloading] = useState(false)
 
   // Table state
   const [page, setPage] = useState(1)
@@ -204,6 +205,27 @@ export function AnalisaJurusanLanjutPage() {
     setPage(1)
     setSelectedStudent(null)
     setAiAnalysis(null)
+  }
+
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      const res = await fetch(`/api/analisa-jurusan-lanjut/download?kelas=${kelas}${filterRombel !== 'all' ? `&rombelid=${filterRombel}` : ''}`)
+      if (!res.ok) throw new Error('Gagal download')
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Rekomendasi_Jurusan_Kelas_${kelas}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      toast({ title: 'Gagal', description: 'Gagal mengunduh file', variant: 'destructive' })
+    } finally {
+      setDownloading(false)
+    }
   }
 
   // ============================================================
@@ -594,10 +616,12 @@ export function AnalisaJurusanLanjutPage() {
               </SelectContent>
             </Select>
           )}
+          <Button onClick={handleDownload} disabled={downloading} variant="outline" size="sm">
+            {downloading ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Download className="size-4 mr-1" />}
+            Download Excel
+          </Button>
         </div>
       </div>
-
-      {/* Summary Cards */}
       {summary && (
         <motion.div
           className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3"
