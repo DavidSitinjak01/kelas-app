@@ -55,4 +55,4 @@ server.log
 *.db-journal
 
 # Skills directory
-/skills/
+/skills/upload/
