@@ -341,14 +341,27 @@ export default function FormNilaiPage() {
                 </div>
                 <h2 className="text-xl font-bold">Login Siswa</h2>
                 <p className="text-sm text-muted-foreground">
-                  Masukkan Nama dan NISN untuk mengisi nilai
+                  Masukkan <strong>Nama Lengkap</strong> dan <strong>NISN</strong> untuk login
                 </p>
+                <div className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 p-2.5 text-xs text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                  <strong>Info:</strong> Nama harus sesuai data siswa, NISN adalah 10 digit nomor unik siswa
+                </div>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleLogin} className="space-y-4">
                   {loginError && (
-                    <div className="rounded-lg bg-red-50 dark:bg-red-950/50 p-3 text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
-                      {loginError}
+                    <div className="rounded-lg bg-red-50 dark:bg-red-950/50 p-3 border border-red-200 dark:border-red-800">
+                      <p className="text-sm font-medium text-red-600 dark:text-red-400">{loginError}</p>
+                      {loginError.includes('NISN') && (
+                        <p className="text-xs text-red-500 dark:text-red-500 mt-1">
+                          Pastikan NISN yang dimasukkan benar (10 digit angka)
+                        </p>
+                      )}
+                      {loginError.includes('Nama') && (
+                        <p className="text-xs text-red-500 dark:text-red-500 mt-1">
+                          Nama harus sesuai dengan data yang terdaftar
+                        </p>
+                      )}
                     </div>
                   )}
                   <div className="space-y-2">
@@ -401,7 +414,8 @@ export default function FormNilaiPage() {
                   </Button>
                 </form>
                 <div className="mt-6 text-center text-xs text-muted-foreground">
-                  Hubungi wali kelas jika Anda lupa NISN
+                  <p>Hubungi wali kelas jika Anda lupa NISN</p>
+                  <p className="mt-1 text-[11px] opacity-70">Halaman ini hanya untuk siswa — bukan login admin</p>
                 </div>
               </CardContent>
             </Card>

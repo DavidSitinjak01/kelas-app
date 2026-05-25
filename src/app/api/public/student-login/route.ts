@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
     if (!siswa) {
       return NextResponse.json(
-        { error: 'NISN tidak ditemukan' },
+        { error: 'NISN tidak ditemukan — pastikan NISN benar (10 digit angka)' },
         { status: 401 }
       )
     }
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     // Verify Nama as username (case-insensitive)
     if (siswa.nama.toLowerCase().trim() !== nama.toLowerCase().trim()) {
       return NextResponse.json(
-        { error: 'Nama tidak sesuai dengan NISN' },
+        { error: `Nama "${nama}" tidak sesuai dengan NISN tersebut — cek kembali nama dan NISN Anda` },
         { status: 401 }
       )
     }
