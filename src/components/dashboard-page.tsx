@@ -30,7 +30,15 @@ export function DashboardPage() {
     fetch('/api/dashboard')
       .then(res => res.json())
       .then(data => {
-        setStats(data)
+        setStats({
+          totalRombel: data.totalRombel ?? 0,
+          totalSiswa: data.totalSiswa ?? 0,
+          totalNilai: data.totalNilai ?? 0,
+          totalEligible: data.totalEligible ?? 0,
+          siswaPerKelas: Array.isArray(data.siswaPerKelas) ? data.siswaPerKelas : [],
+          siswaPerJurusan: Array.isArray(data.siswaPerJurusan) ? data.siswaPerJurusan : [],
+          rataRataNilai: data.rataRataNilai ?? 0,
+        })
         setLoading(false)
       })
       .catch(() => setLoading(false))
