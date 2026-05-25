@@ -18,7 +18,8 @@ import {
   Trash2,
   BookOpen,
   User,
-
+  Download,
+  FileText,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -51,9 +52,6 @@ interface NilaiEntry {
 
 type Step = 'login' | 'form'
 
-// Check if NIK column exists in the database
-// If not, we show a notice that NIS is used as temporary password
-
 export default function FormNilaiPage() {
   const [step, setStep] = useState<Step>('login')
   const [nama, setNama] = useState('')
@@ -65,6 +63,7 @@ export default function FormNilaiPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
   const [loginError, setLoginError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState(false)
 
@@ -278,6 +277,43 @@ export default function FormNilaiPage() {
     }
   }
 
+  // ---- PDF DOWNLOAD ----
+  const handleDownloadPDF = async () => {
+    if (!siswa) return
+    setIsDownloading(true)
+
+    try {
+      const res = await fetch('/api/public/student-report')
+      if (!res.ok) {
+        const data = await res.json()
+        toast({ title: 'Gagal', description: data.error || 'Tidak dapat membuat laporan', variant: 'destructive' })
+        return
+      }
+
+      const report = await res.json()
+      const html = generateReportHTML(report)
+
+      // Open in new window and trigger print
+      const blob = new Blob([html], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+          }, 500)
+        }
+      }
+
+      toast({ title: 'Laporan siap diunduh!', description: 'Gunakan "Save as PDF" pada dialog print' })
+    } catch {
+      toast({ title: 'Gagal', description: 'Terjadi kesalahan saat membuat laporan', variant: 'destructive' })
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
   const semesterLabels = ['Smt 1', 'Smt 2', 'Smt 3', 'Smt 4', 'Smt 5', 'Smt 6']
   const semesterFields = ['smt1', 'smt2', 'smt3', 'smt4', 'smt5', 'smt6'] as const
 
@@ -431,14 +467,34 @@ export default function FormNilaiPage() {
               </div>
             </Card>
 
-            {/* Save success banner */}
+            {/* Save success banner with download option */}
             {saveSuccess && (
-              <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/50 p-4 flex items-center gap-3 border border-emerald-200 dark:border-emerald-800">
-                <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />
-                <div>
-                  <p className="font-medium text-emerald-700 dark:text-emerald-400">Nilai berhasil disimpan!</p>
-                  <p className="text-sm text-emerald-600 dark:text-emerald-500">Data nilai telah diperbarui</p>
+              <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/50 p-4 border border-emerald-200 dark:border-emerald-800">
+                <div className="flex items-center gap-3 mb-3">
+                  <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />
+                  <div>
+                    <p className="font-medium text-emerald-700 dark:text-emerald-400">Nilai berhasil disimpan!</p>
+                    <p className="text-sm text-emerald-600 dark:text-emerald-500">Data nilai telah diperbarui</p>
+                  </div>
                 </div>
+                <Button
+                  onClick={handleDownloadPDF}
+                  disabled={isDownloading}
+                  className="w-full bg-white text-emerald-700 border border-emerald-300 hover:bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/50"
+                  variant="outline"
+                >
+                  {isDownloading ? (
+                    <>
+                      <Loader2 className="size-4 mr-2 animate-spin" />
+                      Membuat laporan...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="size-4 mr-2" />
+                      Download Laporan Analisa Nilai (PDF)
+                    </>
+                  )}
+                </Button>
               </div>
             )}
 
@@ -584,7 +640,29 @@ export default function FormNilaiPage() {
                 </div>
 
                 {/* Save button */}
-                <div className="sticky bottom-4 z-40">
+                <div className="sticky bottom-4 z-40 space-y-3">
+                  {/* Download PDF button - always visible after first save */}
+                  {saveSuccess && (
+                    <Button
+                      onClick={handleDownloadPDF}
+                      disabled={isDownloading}
+                      className="w-full bg-white text-emerald-700 border-2 border-emerald-500 hover:bg-emerald-50 h-12 text-base shadow-xl dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-600 dark:hover:bg-emerald-900/50"
+                      variant="outline"
+                    >
+                      {isDownloading ? (
+                        <>
+                          <Loader2 className="size-5 mr-2 animate-spin" />
+                          Membuat Laporan...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="size-5 mr-2" />
+                          Download Laporan Analisa & Rekomendasi (PDF)
+                        </>
+                      )}
+                    </Button>
+                  )}
+
                   <Button
                     onClick={handleSave}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 text-base shadow-xl"
@@ -627,4 +705,406 @@ export default function FormNilaiPage() {
       </footer>
     </div>
   )
+}
+
+// ============================================================
+// PDF REPORT HTML GENERATOR
+// ============================================================
+
+function generateReportHTML(report: Record<string, any>): string {
+  const { student, gradeSummary, analysis, jurusanAnalysis, tkaData, eligibleData, generatedAt } = report
+  const kelas = student.rombel?.kelas || 10
+  const generatedDate = new Date(generatedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+
+  // Grade color helper
+  function gradeColor(val: number): string {
+    if (val >= 80) return '#059669'
+    if (val >= 70) return '#2563eb'
+    if (val >= 60) return '#d97706'
+    return '#dc2626'
+  }
+
+  function gradeLabel(val: number): string {
+    if (val >= 90) return 'A'
+    if (val >= 80) return 'B'
+    if (val >= 70) return 'C'
+    if (val >= 60) return 'D'
+    return 'E'
+  }
+
+  // Build grade table rows
+  const gradeRows = gradeSummary.map((g: Record<string, any>) => {
+    const semesters = [g.smt1, g.smt2, g.smt3, g.smt4, g.smt5, g.smt6]
+      .map((v: number) => v > 0 ? `<span style="color:${gradeColor(v)}; font-weight:600">${v}</span>` : '<span style="color:#9ca3af">-</span>')
+      .join('</td><td style="text-align:center; padding:6px 8px; border-bottom:1px solid #e5e7eb; font-size:12px">')
+
+    const catBadge = g.category === 'ipa'
+      ? '<span style="background:#dbeafe; color:#1d4ed8; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600">IPA</span>'
+      : g.category === 'ips'
+      ? '<span style="background:#fef3c7; color:#b45309; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600">IPS</span>'
+      : g.category === 'neutral'
+      ? '<span style="background:#f3f4f6; color:#6b7280; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600">Netral</span>'
+      : '<span style="background:#f3f4f6; color:#9ca3af; padding:2px 6px; border-radius:4px; font-size:10px">Lain</span>'
+
+    return `<tr>
+      <td style="padding:6px 8px; border-bottom:1px solid #e5e7eb; font-size:12px; font-weight:500">${g.matapelajaran} ${catBadge}</td>
+      <td style="text-align:center; padding:6px 8px; border-bottom:1px solid #e5e7eb; font-size:12px">${semesters}</td>
+      <td style="text-align:center; padding:6px 8px; border-bottom:1px solid #e5e7eb; font-size:12px; font-weight:700; color:${gradeColor(g.rerata)}">${g.rerata > 0 ? g.rerata : '-'}</td>
+      <td style="text-align:center; padding:6px 8px; border-bottom:1px solid #e5e7eb; font-size:11px; color:${gradeColor(g.rerata)}; font-weight:600">${g.rerata > 0 ? gradeLabel(g.rerata) : '-'}</td>
+    </tr>`
+  }).join('')
+
+  // Distribution bars
+  const distBars = analysis.distribution.map((d: Record<string, any>) => {
+    const maxCount = Math.max(...analysis.distribution.map((x: Record<string, any>) => x.count), 1)
+    const widthPct = (d.count / maxCount) * 100
+    return `<div style="display:flex; align-items:center; gap:8px; margin-bottom:4px">
+      <span style="width:140px; font-size:11px; text-align:right; color:#374151">${d.range}</span>
+      <div style="flex:1; background:#f3f4f6; border-radius:4px; height:20px; overflow:hidden">
+        <div style="width:${widthPct}%; height:100%; background:linear-gradient(90deg, #059669, #10b981); border-radius:4px; min-width:${d.count > 0 ? '4px' : '0'}"></div>
+      </div>
+      <span style="width:30px; font-size:11px; font-weight:600; color:#374151">${d.count}</span>
+    </div>`
+  }).join('')
+
+  // Strong subjects
+  const strongHTML = analysis.strongSubjects.length > 0
+    ? analysis.strongSubjects.map((s: Record<string, any>) =>
+        `<span style="display:inline-block; background:#ecfdf5; color:#065f46; padding:4px 10px; border-radius:6px; font-size:11px; margin:2px; font-weight:500">${s.matapelajaran} (${s.rerata})</span>`
+      ).join('')
+    : '<p style="font-size:12px; color:#9ca3af">Belum ada mapel dengan nilai ≥80</p>'
+
+  // Weak subjects
+  const weakHTML = analysis.weakSubjects.length > 0
+    ? analysis.weakSubjects.map((s: Record<string, any>) =>
+        `<span style="display:inline-block; background:#fef2f2; color:#991b1b; padding:4px 10px; border-radius:6px; font-size:11px; margin:2px; font-weight:500">${s.matapelajaran} (${s.rerata})</span>`
+      ).join('')
+    : '<p style="font-size:12px; color:#059669; font-weight:500">Tidak ada mapel dengan nilai di bawah 60. Bagus!</p>'
+
+  // Jurusan analysis section
+  let jurusanHTML = ''
+
+  if (jurusanAnalysis.type === 'kelas10') {
+    const rec = jurusanAnalysis.rekomendasi
+    const recColor = rec.includes('IPA') ? '#1d4ed8' : rec.includes('IPS') ? '#b45309' : '#6b7280'
+    const recBg = rec.includes('IPA') ? '#dbeafe' : rec.includes('IPS') ? '#fef3c7' : '#f3f4f6'
+
+    jurusanHTML = `
+      <div style="background:linear-gradient(135deg, ${recBg}, white); border:2px solid ${recColor}20; border-radius:12px; padding:20px; margin-bottom:16px; text-align:center">
+        <p style="font-size:12px; color:#6b7280; margin:0 0 4px 0; text-transform:uppercase; letter-spacing:1px">Rekomendasi Penjurusan</p>
+        <p style="font-size:28px; font-weight:800; color:${recColor}; margin:0">${rec}</p>
+        <p style="font-size:13px; color:#6b7280; margin:4px 0 0 0">Tingkat Kepercayaan: <strong style="color:${recColor}">${jurusanAnalysis.confidence}%</strong></p>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px">
+        <div style="background:#eff6ff; border-radius:10px; padding:14px; text-align:center">
+          <p style="font-size:11px; color:#6b7280; margin:0">Skor IPA</p>
+          <p style="font-size:24px; font-weight:800; color:#1d4ed8; margin:2px 0">${jurusanAnalysis.ipaScore}</p>
+          <p style="font-size:11px; color:#6b7280; margin:0">${jurusanAnalysis.ipaSubjects.length} mapel IPA</p>
+        </div>
+        <div style="background:#fffbeb; border-radius:10px; padding:14px; text-align:center">
+          <p style="font-size:11px; color:#6b7280; margin:0">Skor IPS</p>
+          <p style="font-size:24px; font-weight:800; color:#b45309; margin:2px 0">${jurusanAnalysis.ipsScore}</p>
+          <p style="font-size:11px; color:#6b7280; margin:0">${jurusanAnalysis.ipsSubjects.length} mapel IPS</p>
+        </div>
+      </div>
+
+      ${jurusanAnalysis.reasoning.length > 0 ? `
+      <div style="background:#f9fafb; border-radius:10px; padding:14px; margin-bottom:12px">
+        <p style="font-size:13px; font-weight:700; color:#374151; margin:0 0 8px 0">Analisis:</p>
+        <ul style="margin:0; padding-left:16px; font-size:12px; color:#4b5563; line-height:1.8">
+          ${jurusanAnalysis.reasoning.map((r: string) => `<li>${r}</li>`).join('')}
+        </ul>
+      </div>` : ''}
+    `
+  } else {
+    // Kelas XI/XII major recommendations
+    const { trackInclination, topMajors, confidence, reasoning } = jurusanAnalysis
+
+    const trackColor = trackInclination.dominant === 'IPA' ? '#1d4ed8' : trackInclination.dominant === 'IPS' ? '#b45309' : '#6b7280'
+    const trackBg = trackInclination.dominant === 'IPA' ? '#dbeafe' : trackInclination.dominant === 'IPS' ? '#fef3c7' : '#f3f4f6'
+
+    jurusanHTML = `
+      <div style="background:linear-gradient(135deg, ${trackBg}, white); border:2px solid ${trackColor}20; border-radius:12px; padding:20px; margin-bottom:16px; text-align:center">
+        <p style="font-size:12px; color:#6b7280; margin:0 0 4px 0; text-transform:uppercase; letter-spacing:1px">Kecenderungan Jalur</p>
+        <p style="font-size:28px; font-weight:800; color:${trackColor}; margin:0">${trackInclination.dominant}</p>
+        <div style="display:flex; justify-content:center; gap:16px; margin-top:8px">
+          <span style="font-size:13px; color:#1d4ed8; font-weight:600">IPA ${trackInclination.ipa}%</span>
+          <span style="font-size:13px; color:#9ca3af">vs</span>
+          <span style="font-size:13px; color:#b45309; font-weight:600">IPS ${trackInclination.ips}%</span>
+        </div>
+        <p style="font-size:13px; color:#6b7280; margin:8px 0 0 0">Tingkat Kepercayaan: <strong style="color:${trackColor}">${confidence}%</strong></p>
+      </div>
+
+      ${topMajors.length > 0 ? `
+      <div style="margin-bottom:16px">
+        <p style="font-size:13px; font-weight:700; color:#374151; margin:0 0 8px 0">Top 5 Rekomendasi Jurusan:</p>
+        ${topMajors.map((m: Record<string, any>, i: number) => {
+          const mColor = m.track === 'IPA' ? '#1d4ed8' : '#b45309'
+          const mBg = m.track === 'IPA' ? '#eff6ff' : '#fffbeb'
+          const barWidth = m.skor > 0 ? Math.min(100, (m.skor / 100) * 100) : 0
+
+          return `<div style="background:${mBg}; border-radius:8px; padding:10px 12px; margin-bottom:6px; border-left:4px solid ${mColor}">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
+              <div style="display:flex; align-items:center; gap:6px">
+                <span style="font-size:14px; font-weight:700; color:${mColor}">#${i + 1}</span>
+                <span style="font-size:12px; font-weight:600; color:#1f2937">${m.nama}</span>
+                <span style="background:${mColor}15; color:${mColor}; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:600">${m.track}</span>
+              </div>
+              <span style="font-size:14px; font-weight:700; color:${mColor}">${m.skor}</span>
+            </div>
+            <div style="background:#e5e7eb; border-radius:4px; height:6px; overflow:hidden; margin-bottom:6px">
+              <div style="width:${barWidth}%; height:100%; background:${mColor}; border-radius:4px"></div>
+            </div>
+            ${m.specificJurusan && m.specificJurusan.length > 0 ? `
+            <div style="margin-top:4px">
+              <p style="font-size:10px; color:#6b7280; margin:0 0 2px 0; font-weight:600">Program Studi:</p>
+              ${m.specificJurusan.slice(0, 2).map((j: Record<string, any>) =>
+                `<p style="font-size:11px; color:#4b5563; margin:1px 0">• <strong>${j.jurusan}</strong> — ${j.deskripsi} <span style="color:#9ca3af">(${j.prospek})</span></p>`
+              ).join('')}
+            </div>` : ''}
+          </div>`
+        }).join('')}
+      </div>` : ''}
+
+      ${reasoning.length > 0 ? `
+      <div style="background:#f9fafb; border-radius:10px; padding:14px; margin-bottom:12px">
+        <p style="font-size:13px; font-weight:700; color:#374151; margin:0 0 8px 0">Analisis:</p>
+        <ul style="margin:0; padding-left:16px; font-size:12px; color:#4b5563; line-height:1.8">
+          ${reasoning.map((r: string) => `<li>${r}</li>`).join('')}
+        </ul>
+      </div>` : ''}
+    `
+  }
+
+  // TKA section
+  let tkaHTML = ''
+  if (tkaData) {
+    tkaHTML = `
+    <div style="page-break-inside:avoid; margin-bottom:20px">
+      <div style="background:linear-gradient(135deg, #faf5ff, white); border:1px solid #e9d5ff; border-radius:12px; padding:16px">
+        <h3 style="font-size:15px; font-weight:700; color:#7c3aed; margin:0 0 12px 0">Tes Kompetensi Akademik (TKA)</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px">
+          <div style="text-align:center; background:white; border-radius:8px; padding:8px; border:1px solid #e9d5ff">
+            <p style="font-size:10px; color:#6b7280; margin:0">Bahasa Indonesia</p>
+            <p style="font-size:18px; font-weight:700; color:${gradeColor(tkaData.bindoNilai || 0)}; margin:2px 0">${tkaData.bindoNilai || '-'}</p>
+            <p style="font-size:10px; color:#9ca3af; margin:0">${tkaData.bindoKategori || '-'}</p>
+          </div>
+          <div style="text-align:center; background:white; border-radius:8px; padding:8px; border:1px solid #e9d5ff">
+            <p style="font-size:10px; color:#6b7280; margin:0">Matematika</p>
+            <p style="font-size:18px; font-weight:700; color:${gradeColor(tkaData.matNilai || 0)}; margin:2px 0">${tkaData.matNilai || '-'}</p>
+            <p style="font-size:10px; color:#9ca3af; margin:0">${tkaData.matKategori || '-'}</p>
+          </div>
+          <div style="text-align:center; background:white; border-radius:8px; padding:8px; border:1px solid #e9d5ff">
+            <p style="font-size:10px; color:#6b7280; margin:0">Bahasa Inggris</p>
+            <p style="font-size:18px; font-weight:700; color:${gradeColor(tkaData.bingNilai || 0)}; margin:2px 0">${tkaData.bingNilai || '-'}</p>
+            <p style="font-size:10px; color:#9ca3af; margin:0">${tkaData.bingKategori || '-'}</p>
+          </div>
+        </div>
+        ${tkaData.pilihan1Nama ? `
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">
+          <div style="text-align:center; background:white; border-radius:8px; padding:8px; border:1px solid #e9d5ff">
+            <p style="font-size:10px; color:#6b7280; margin:0">Pilihan 1: ${tkaData.pilihan1Nama}</p>
+            <p style="font-size:16px; font-weight:700; color:${gradeColor(tkaData.pilihan1Nilai || 0)}; margin:2px 0">${tkaData.pilihan1Nilai || '-'}</p>
+          </div>
+          <div style="text-align:center; background:white; border-radius:8px; padding:8px; border:1px solid #e9d5ff">
+            <p style="font-size:10px; color:#6b7280; margin:0">Pilihan 2: ${tkaData.pilihan2Nama || '-'}</p>
+            <p style="font-size:16px; font-weight:700; color:${gradeColor(tkaData.pilihan2Nilai || 0)}; margin:2px 0">${tkaData.pilihan2Nilai || '-'}</p>
+          </div>
+        </div>` : ''}
+      </div>
+    </div>`
+  }
+
+  // Eligible section
+  let eligibleHTML = ''
+  if (eligibleData) {
+    const elColor = eligibleData.status === 'Lulus' ? '#059669' : eligibleData.status === 'Tidak Lulus' ? '#dc2626' : '#d97706'
+    const elBg = eligibleData.status === 'Lulus' ? '#ecfdf5' : eligibleData.status === 'Tidak Lulus' ? '#fef2f2' : '#fffbeb'
+    eligibleHTML = `
+    <div style="margin-bottom:20px">
+      <div style="background:${elBg}; border:2px solid ${elColor}30; border-radius:12px; padding:16px; text-align:center">
+        <p style="font-size:12px; color:#6b7280; margin:0 0 4px 0">Status Kelulusan</p>
+        <p style="font-size:24px; font-weight:800; color:${elColor}; margin:0">${eligibleData.status}</p>
+        ${eligibleData.keterangan ? `<p style="font-size:12px; color:#6b7280; margin:4px 0 0 0">${eligibleData.keterangan}</p>` : ''}
+      </div>
+    </div>`
+  }
+
+  // Trend indicator
+  const trendIndicator = analysis.overallTrend > 2
+    ? `<span style="color:#059669; font-weight:600">↑ Meningkat (+${analysis.overallTrend})</span>`
+    : analysis.overallTrend < -2
+    ? `<span style="color:#dc2626; font-weight:600">↓ Menurun (${analysis.overallTrend})</span>`
+    : `<span style="color:#6b7280; font-weight:500">→ Stabil</span>`
+
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Analisa Nilai - ${student.nama}</title>
+  <style>
+    @page { size: A4; margin: 15mm; }
+    @media print {
+      .no-print { display: none !important; }
+      body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: #1f2937;
+      line-height: 1.5;
+      margin: 0;
+      padding: 0;
+      background: white;
+    }
+    .print-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+      background: #1f2937; color: white; padding: 10px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .print-bar button {
+      background: #059669; color: white; border: none; padding: 8px 20px;
+      border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;
+    }
+    .print-bar button:hover { background: #047857; }
+  </style>
+</head>
+<body>
+  <!-- Print bar -->
+  <div class="no-print print-bar">
+    <span style="font-size:14px">Laporan Analisa Nilai - ${student.nama}</span>
+    <button onclick="window.print()">📥 Download PDF</button>
+  </div>
+
+  <div style="max-width:800px; margin:0 auto; padding:60px 20px 20px 20px">
+    <!-- Header -->
+    <div style="text-align:center; margin-bottom:24px; padding-bottom:16px; border-bottom:3px solid #059669">
+      <h1 style="font-size:22px; font-weight:800; color:#059669; margin:0; letter-spacing:-0.5px">LAPORAN ANALISA NILAI</h1>
+      <p style="font-size:13px; color:#6b7280; margin:4px 0 0 0">dan Rekomendasi Jurusan</p>
+    </div>
+
+    <!-- Student Profile -->
+    <div style="background:linear-gradient(135deg, #ecfdf5, #f0fdfa); border:1px solid #d1fae5; border-radius:12px; padding:16px; margin-bottom:20px">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px">
+        <div>
+          <h2 style="font-size:20px; font-weight:800; color:#065f46; margin:0">${student.nama}</h2>
+          <p style="font-size:13px; color:#6b7280; margin:4px 0 0 0">
+            NISN: ${student.nisn} • NIS: ${student.nis}
+            ${student.jeniskelamin ? ` • ${student.jeniskelamin}` : ''}
+          </p>
+          <p style="font-size:13px; color:#6b7280; margin:2px 0 0 0">
+            ${student.rombel ? `${student.rombel.nama} • Kelas ${student.rombel.kelas} • ${student.rombel.jurusan}` : ''}
+            ${student.rombel?.walikelas ? ` • Wali Kelas: ${student.rombel.walikelas}` : ''}
+          </p>
+        </div>
+        <div style="text-align:right">
+          <p style="font-size:10px; color:#9ca3af; margin:0">Tanggal Laporan</p>
+          <p style="font-size:12px; font-weight:600; color:#374151; margin:2px 0 0 0">${generatedDate}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:20px">
+      <div style="background:#f9fafb; border-radius:8px; padding:10px; text-align:center; border:1px solid #e5e7eb">
+        <p style="font-size:10px; color:#6b7280; margin:0">Rata-rata</p>
+        <p style="font-size:22px; font-weight:800; color:${gradeColor(analysis.overallAvg)}; margin:2px 0">${analysis.overallAvg}</p>
+        <p style="font-size:10px; color:#6b7280; margin:0">${gradeLabel(analysis.overallAvg)}</p>
+      </div>
+      <div style="background:#f9fafb; border-radius:8px; padding:10px; text-align:center; border:1px solid #e5e7eb">
+        <p style="font-size:10px; color:#6b7280; margin:0">Konsistensi</p>
+        <p style="font-size:22px; font-weight:800; color:#059669; margin:2px 0">${Math.round(analysis.consistency * 100)}%</p>
+        <p style="font-size:10px; color:#6b7280; margin:0">Stabilitas Nilai</p>
+      </div>
+      <div style="background:#f9fafb; border-radius:8px; padding:10px; text-align:center; border:1px solid #e5e7eb">
+        <p style="font-size:10px; color:#6b7280; margin:0">Tren</p>
+        <p style="font-size:16px; font-weight:700; margin:6px 0">${trendIndicator}</p>
+      </div>
+      <div style="background:#f9fafb; border-radius:8px; padding:10px; text-align:center; border:1px solid #e5e7eb">
+        <p style="font-size:10px; color:#6b7280; margin:0">Total Mapel</p>
+        <p style="font-size:22px; font-weight:800; color:#374151; margin:2px 0">${analysis.totalSubjects}</p>
+        <p style="font-size:10px; color:#6b7280; margin:0">IPA:${analysis.ipaCount} IPS:${analysis.ipsCount}</p>
+      </div>
+    </div>
+
+    ${eligibleHTML}
+
+    <!-- Grade Table -->
+    <div style="page-break-inside:avoid; margin-bottom:20px">
+      <h3 style="font-size:15px; font-weight:700; color:#374151; margin:0 0 8px 0; border-left:4px solid #059669; padding-left:8px">Daftar Nilai per Mata Pelajaran</h3>
+      <div style="border:1px solid #e5e7eb; border-radius:10px; overflow:hidden">
+        <table style="width:100%; border-collapse:collapse">
+          <thead>
+            <tr style="background:#f9fafb">
+              <th style="text-align:left; padding:8px; font-size:11px; font-weight:600; color:#6b7280; border-bottom:2px solid #e5e7eb">Mata Pelajaran</th>
+              <th style="text-align:center; padding:8px; font-size:11px; font-weight:600; color:#6b7280; border-bottom:2px solid #e5e7eb">Smt 1</th>
+              <th style="text-align:center; padding:8px; font-size:11px; font-weight:600; color:#6b7280; border-bottom:2px solid #e5e7eb">Smt 2</th>
+              <th style="text-align:center; padding:8px; font-size:11px; font-weight:600; color:#6b7280; border-bottom:2px solid #e5e7eb">Smt 3</th>
+              <th style="text-align:center; padding:8px; font-size:11px; font-weight:600; color:#6b7280; border-bottom:2px solid #e5e7eb">Smt 4</th>
+              <th style="text-align:center; padding:8px; font-size:11px; font-weight:600; color:#6b7280; border-bottom:2px solid #e5e7eb">Smt 5</th>
+              <th style="text-align:center; padding:8px; font-size:11px; font-weight:600; color:#6b7280; border-bottom:2px solid #e5e7eb">Smt 6</th>
+              <th style="text-align:center; padding:8px; font-size:11px; font-weight:600; color:#6b7280; border-bottom:2px solid #e5e7eb">Rerata</th>
+              <th style="text-align:center; padding:8px; font-size:11px; font-weight:600; color:#6b7280; border-bottom:2px solid #e5e7eb">Grade</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${gradeRows}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- IPA vs IPS Average -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; page-break-inside:avoid">
+      <div style="background:#eff6ff; border-radius:10px; padding:14px; text-align:center; border:1px solid #bfdbfe">
+        <p style="font-size:12px; color:#6b7280; margin:0">Rata-rata Mapel IPA</p>
+        <p style="font-size:28px; font-weight:800; color:#1d4ed8; margin:4px 0">${analysis.ipaAvg}</p>
+      </div>
+      <div style="background:#fffbeb; border-radius:10px; padding:14px; text-align:center; border:1px solid #fde68a">
+        <p style="font-size:12px; color:#6b7280; margin:0">Rata-rata Mapel IPS</p>
+        <p style="font-size:28px; font-weight:800; color:#b45309; margin:4px 0">${analysis.ipsAvg}</p>
+      </div>
+    </div>
+
+    <!-- Distribution -->
+    <div style="page-break-inside:avoid; margin-bottom:20px">
+      <h3 style="font-size:15px; font-weight:700; color:#374151; margin:0 0 8px 0; border-left:4px solid #059669; padding-left:8px">Distribusi Nilai</h3>
+      <div style="background:#f9fafb; border-radius:10px; padding:14px; border:1px solid #e5e7eb">
+        ${distBars}
+      </div>
+    </div>
+
+    <!-- Strong and Weak -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; page-break-inside:avoid">
+      <div style="background:#f0fdf4; border-radius:10px; padding:14px; border:1px solid #bbf7d0">
+        <p style="font-size:13px; font-weight:700; color:#065f46; margin:0 0 8px 0">Mapel Unggulan (≥80)</p>
+        ${strongHTML}
+      </div>
+      <div style="background:#fef2f2; border-radius:10px; padding:14px; border:1px solid #fecaca">
+        <p style="font-size:13px; font-weight:700; color:#991b1b; margin:0 0 8px 0">Mapel Perlu Peningkatan (&lt;60)</p>
+        ${weakHTML}
+      </div>
+    </div>
+
+    ${tkaHTML}
+
+    <!-- Jurusan Analysis -->
+    <div style="page-break-inside:avoid; margin-bottom:20px">
+      <h3 style="font-size:15px; font-weight:700; color:#374151; margin:0 0 12px 0; border-left:4px solid #7c3aed; padding-left:8px">
+        ${kelas === 10 ? 'Rekomendasi Penjurusan (IPA / IPS)' : 'Rekomendasi Jurusan Perguruan Tinggi'}
+      </h3>
+      ${jurusanHTML}
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top:24px; padding-top:12px; border-top:1px solid #e5e7eb; text-align:center">
+      <p style="font-size:10px; color:#9ca3af; margin:0">Laporan ini dihasilkan secara otomatis oleh Kelas App berdasarkan data nilai yang tersedia.</p>
+      <p style="font-size:10px; color:#9ca3af; margin:2px 0 0 0">Rekomendasi bersifat saran — keputusan akurat mempertimbangkan faktor lain seperti minat, bakat, dan konsultasi dengan BK.</p>
+      <p style="font-size:10px; color:#d1d5db; margin:4px 0 0 0">© 2025 Kelas App</p>
+    </div>
+  </div>
+</body>
+</html>`
 }
