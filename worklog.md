@@ -451,3 +451,33 @@ Stage Summary:
   2. ALTER TABLE siswa ADD COLUMN IF NOT EXISTS nik TEXT DEFAULT '-'
 - Dev server crashes intermittently due to sandbox memory limits (code is correct)
 - Pushed to GitHub/Vercel
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Fix student login to use NIS fallback when NIK not set, fix workspace display
+
+Work Log:
+- Verified that the NIK column does NOT exist in the actual Supabase database (siswa table)
+- Verified that the Admin table does NOT exist in Supabase
+- Both issues prevent the app from working properly in the workspace
+- Added NIS fallback to student login API: when nik is undefined or '-', NIS is used as temporary password
+- Updated student login API response to include nikNotSet flag
+- Updated form-nilai page with:
+  - Notice banner on login form: "Jika NIK belum diatur, gunakan NIS sebagai password sementara"
+  - Changed NIK label to "NIK (Nomor Induk Kependudukan) / NIS sementara"
+  - Added amber warning banner when student logs in with NIS fallback
+  - Added AlertTriangle icon import
+- Tested student login API: NISN=0102432531, NIS=9258 → success with nikNotSet=true
+- Tested complete student flow: login → session → get nilai → all working
+- Built production server (next build succeeds)
+- Dev server runs in workspace with memory constraints (8GB cgroup limit)
+- Server can handle 3-4 requests before memory pressure causes crash
+- Form-nilai page and student login API are verified working
+
+Stage Summary:
+- Student login system: NISN as username, NIK as password (with NIS fallback when NIK not set)
+- Admin table and NIK column still need to be created manually in Supabase SQL Editor
+- SQL to run provided below
+- App works on Vercel (production deployment)
+- Workspace preview works but is limited by memory constraints (can show setup page and form-nilai)

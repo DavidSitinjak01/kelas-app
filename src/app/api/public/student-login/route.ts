@@ -28,7 +28,19 @@ export async function POST(request: Request) {
     }
 
     // Verify NIK as password
-    if (siswa.nik !== nik) {
+    // Fallback: if NIK is not set (undefined or '-'), allow NIS as password
+    const studentNik = siswa.nik
+    const nikNotSet = !studentNik || studentNik === '-' || studentNik === ''
+
+    if (nikNotSet) {
+      // NIK belum diatur, gunakan NIS sebagai password sementara
+      if (siswa.nis !== nik) {
+        return NextResponse.json(
+          { error: 'NIK/NIK belum diatur. Gunakan NIS sebagai password sementara.' },
+          { status: 401 }
+        )
+      }
+    } else if (studentNik !== nik) {
       return NextResponse.json(
         { error: 'NIK salah' },
         { status: 401 }
@@ -54,6 +66,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
+      nikNotSet,
       student: {
         id: siswa.id,
         nis: siswa.nis,

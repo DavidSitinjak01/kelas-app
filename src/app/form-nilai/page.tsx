@@ -18,6 +18,7 @@ import {
   Trash2,
   BookOpen,
   User,
+  AlertTriangle,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -50,6 +51,9 @@ interface NilaiEntry {
 
 type Step = 'login' | 'form'
 
+// Check if NIK column exists in the database
+// If not, we show a notice that NIS is used as temporary password
+
 export default function FormNilaiPage() {
   const [step, setStep] = useState<Step>('login')
   const [nisn, setNisn] = useState('')
@@ -63,6 +67,7 @@ export default function FormNilaiPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [loginError, setLoginError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [nikNotSet, setNikNotSet] = useState(false)
   const { toast } = useToast()
 
   // Check existing session on mount
@@ -123,6 +128,7 @@ export default function FormNilaiPage() {
       }
 
       setSiswa(data.student)
+      setNikNotSet(data.nikNotSet || false)
 
       // Load nilai
       const nilaiRes = await fetch(`/api/public/nilai?siswaid=${data.student.id}`)
@@ -326,6 +332,9 @@ export default function FormNilaiPage() {
                 <p className="text-sm text-muted-foreground">
                   Masukkan NISN dan NIK untuk mengisi nilai
                 </p>
+                <div className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-950/50 p-2.5 text-xs text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                  <strong>Catatan:</strong> Jika NIK belum diatur, gunakan <strong>NIS</strong> sebagai password sementara
+                </div>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleLogin} className="space-y-4">
@@ -348,7 +357,7 @@ export default function FormNilaiPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="nik">NIK (Nomor Induk Kependudukan)</Label>
+                    <Label htmlFor="nik">NIK (Nomor Induk Kependudukan) / NIS sementara</Label>
                     <div className="relative">
                       <Input
                         id="nik"
@@ -425,6 +434,17 @@ export default function FormNilaiPage() {
                 )}
               </div>
             </Card>
+
+            {/* NIK not set warning */}
+            {nikNotSet && (
+              <div className="rounded-lg bg-amber-50 dark:bg-amber-950/50 p-4 flex items-center gap-3 border border-amber-200 dark:border-amber-800">
+                <AlertTriangle className="size-5 text-amber-600 shrink-0" />
+                <div>
+                  <p className="font-medium text-amber-700 dark:text-amber-400">NIK belum diatur</p>
+                  <p className="text-sm text-amber-600 dark:text-amber-500">Anda login menggunakan NIS sebagai password sementara. Hubungi wali kelas untuk mengatur NIK.</p>
+                </div>
+              </div>
+            )}
 
             {/* Save success banner */}
             {saveSuccess && (
